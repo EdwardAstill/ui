@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# ui — dispatcher for the UI showcase project.
+#   ui web            run the web (React) theme showcase
+#   ui tui            pick a TUI interactively
+#   ui tui storm      run the Storm (TypeScript) TUI
+#   ui tui textual    run the Textual (Python) TUI
+
+set -euo pipefail
+
+# Resolve project root (directory containing this script's parent).
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
+
+usage() {
+  cat <<EOF
+ui — theme showcase
+
+Usage:
+  ui web                  start the web showcase (http://localhost:3000)
+  ui tui                  pick a TUI showcase
+  ui tui storm            run the Storm (TypeScript, React) TUI
+  ui tui textual          run the Textual (Python) TUI
+  ui help                 show this message
+EOF
+}
+
+run_web() {
+  cd "$ROOT"
+  if [ ! -d node_modules ]; then
+    echo "→ installing web deps with bun"
+    bun install
+  fi
+  exec bun --hot server.ts
+}
+
+run_storm() {
+  cd "$ROOT/tuis/storm"
+  if [ ! -d node_modules ]; then
+    echo "→ installing storm deps with bun"
+    bun install
+  fi
+  exec bun run app.tsx
+}
+
+run_textual() {
+  cd "$ROOT/tuis/textual"
+  exec uv run --quiet app.py
+}
+
+pick_tui() {
+  echo "Which TUI?"
+  echo "  1) storm      (TypeScript, React-based, @orchetron/storm)"
+  echo "  2) textual    (Python, Textualize)"
+  printf "> "
+  read -r choice
+  case "$choice" in
+    1|storm)    run_storm ;;
+    2|textual)  run_textual ;;
+    *) echo "unknown choice: $choice" >&2; exit 1 ;;
+  esac
+}
+
+cmd="${1:-help}"
+case "$cmd" in
+  web)  run_web ;;
+  tui)
+    sub="${2:-}"
+    case "$sub" in
+      "")       pick_tui ;;
+      storm)    run_storm ;;
+      textual)  run_textual ;;
+      *) echo "unknown tui: $sub (try: storm | textual)" >&2; exit 1 ;;
+    esac
+    ;;
+  help|-h|--help) usage ;;
+  *) usage; exit 1 ;;
+esac
