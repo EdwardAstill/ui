@@ -1,398 +1,599 @@
-import React, { useRef, useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   render,
   Box,
   Text,
-  Tabs,
   Footer,
-  Spinner,
-  Sparkline,
-  ProgressBar,
-  Divider,
   Modal,
   Kbd,
-  Badge,
-  Gauge,
+  ScrollView,
   SyntaxHighlight,
   useInput,
   useApp,
   useTerminal,
-  useTick,
 } from "@orchetron/storm";
 
-type Theme = {
+type TreeNode = {
   id: string;
-  name: string;
-  tagline: string;
-  colors: { bg: string; fg: string; accent: string; alt: string; muted: string };
+  label: string;
+  children?: TreeNode[];
+  data?: Record<string, any>;
+  _expanded?: boolean;
 };
 
-const THEMES: Theme[] = [
-  { id: "terminal",    name: "Terminal",    tagline: "phosphor green on black",         colors: { bg: "#0a0f0a", fg: "#9aff9a", accent: "#39ff14", alt: "#2fa82f", muted: "#4d734d" } },
-  { id: "glass",       name: "Glass",       tagline: "frosted translucent minimalism",  colors: { bg: "#12162a", fg: "#e6ecff", accent: "#6ea8ff", alt: "#a1b8ff", muted: "#6b7798" } },
-  { id: "neobrutal",   name: "Neobrutal",   tagline: "hard shadows, primary colors",    colors: { bg: "#fff7d6", fg: "#111111", accent: "#ff4f4f", alt: "#2b7bff", muted: "#777777" } },
-  { id: "cyberpunk",   name: "Cyberpunk",   tagline: "neon on midnight",                colors: { bg: "#0a0018", fg: "#fff6ff", accent: "#ff2bd6", alt: "#27f5ff", muted: "#6a3a8a" } },
-  { id: "pastel",      name: "Pastel",      tagline: "soft candy palette",              colors: { bg: "#fff5fa", fg: "#4a3b52", accent: "#ffb6c1", alt: "#b6e3ff", muted: "#b9a9c2" } },
-  { id: "y2k",         name: "Y2K",         tagline: "chrome and optimism",             colors: { bg: "#e6f0ff", fg: "#102040", accent: "#ff8adf", alt: "#60d0ff", muted: "#7a8aa8" } },
-  { id: "swiss",       name: "Swiss",       tagline: "helvetica grid discipline",       colors: { bg: "#f4f4f2", fg: "#1a1a1a", accent: "#ff1f1f", alt: "#1a1a1a", muted: "#888888" } },
-  { id: "catppuccin",  name: "Catppuccin",  tagline: "soothing pastel mocha",           colors: { bg: "#1e1e2e", fg: "#cdd6f4", accent: "#f5c2e7", alt: "#89b4fa", muted: "#6c7086" } },
-  { id: "retroos",     name: "RetroOS",     tagline: "beveled windows, 1996",           colors: { bg: "#008080", fg: "#000000", accent: "#c0c0c0", alt: "#0000aa", muted: "#555555" } },
-  { id: "vaporwave",   name: "Vaporwave",   tagline: "aesthetic magenta & cyan",        colors: { bg: "#1a0030", fg: "#ffe0ff", accent: "#ff71ce", alt: "#01cdfe", muted: "#7a4a9a" } },
-  { id: "shadcn",      name: "Shadcn Dark", tagline: "neutral engineered dark",         colors: { bg: "#0b0b0d", fg: "#f4f4f5", accent: "#a1a1aa", alt: "#6366f1", muted: "#52525b" } },
-  { id: "dock",        name: "Dock IDE",    tagline: "editor slab with rail",           colors: { bg: "#161821", fg: "#d2d4de", accent: "#84a0c6", alt: "#a093c7", muted: "#6b7089" } },
+const GREYSCALE = {
+  bg: "#0B0B0D",
+  fg: "#F4F4F5",
+  border: "#525252",
+  borderFocused: "#FFFFFF",
+  dim: "#71717A",
+  selected: "#F4F4F5",
+  selectedBg: "#2E2E32",
+};
+
+const CODE_SAMPLE = `// Greyscale-only theme
+export const theme = {
+  colors: {
+    bg: "#0B0B0D",
+    fg: "#F4F4F5",
+    border: "#525252",
+    dim: "#71717A",
+  },
+  typography: {
+    body: "Inter, system-ui",
+    mono: "JetBrains Mono",
+  },
+};`;
+
+const TREE_DATA: TreeNode[] = [
+  {
+    id: "foundations",
+    label: "Foundations",
+    children: [
+      { id: "color", label: "Color System", data: { desc: "16-level greyscale" } },
+      { id: "typography", label: "Typography", data: { desc: "Body + mono stacks" } },
+      { id: "spacing", label: "Spacing Scale", data: { desc: "4px base unit" } },
+      { id: "radius", label: "Border Radius", data: { desc: "0px, 4px, 8px, 16px" } },
+    ],
+  },
+  {
+    id: "components",
+    label: "Components",
+    children: [
+      { id: "button", label: "Button", data: { variants: ["primary", "secondary", "ghost"] } },
+      { id: "input", label: "Input Field", data: { variants: ["text", "search", "textarea"] } },
+      { id: "card", label: "Card", data: { variants: ["default", "elevated", "outlined"] } },
+      { id: "modal", label: "Modal", data: { features: ["focus trap", "backdrop", "animations"] } },
+    ],
+  },
+  {
+    id: "patterns",
+    label: "Patterns",
+    children: [
+      { id: "forms", label: "Forms", data: { includes: ["validation", "error handling"] } },
+      { id: "tables", label: "Data Tables", data: { includes: ["sorting", "filtering", "pagination"] } },
+      { id: "nav", label: "Navigation", data: { includes: ["breadcrumbs", "tabs", "menu"] } },
+    ],
+  },
 ];
 
-const CODE_SAMPLE = `// Theme-aware component
-export function Button({ label, onClick }: Props) {
-  const theme = useTheme();
+type TabKey = "overview" | "properties" | "code" | "settings";
+
+function TreeRow({
+  node,
+  level,
+  isFocused,
+  hintKey,
+}: {
+  node: TreeNode;
+  level: number;
+  isFocused: boolean;
+  hintKey?: string;
+}) {
+  const hasChildren = node.children && node.children.length > 0;
+  const toggle = hasChildren ? (node._expanded ? "▼ " : "▶ ") : "  ";
+  const indent = "  ".repeat(level);
+
   return (
-    <button
-      onClick={onClick}
-      style={{
-        background: theme.accent,
-        color: theme.bg,
-        border: \`1px solid \${theme.alt}\`,
-      }}
-    >
-      {label}
-    </button>
-  );
-}`;
-
-function Swatch({ color, label }: { color: string; label: string }) {
-  return (
-    <Box flexDirection="row" alignItems="center" gap={1}>
-      <Text backgroundColor={color} color={color}>   </Text>
-      <Text dim>{label}</Text>
-      <Text>{color}</Text>
-    </Box>
-  );
-}
-
-function LiveDot({ color }: { color: string }) {
-  const visibleRef = useRef(true);
-  const [, force] = useState(0);
-  useTick(600, () => {
-    visibleRef.current = !visibleRef.current;
-    force((t) => t + 1);
-  });
-  return <Text color={color}>{visibleRef.current ? "●" : "○"}</Text>;
-}
-
-function Overview({ theme }: { theme: Theme }) {
-  const c = theme.colors;
-  return (
-    <Box flexDirection="column" padding={1} gap={1}>
-      <Box flexDirection="row" gap={1} alignItems="center">
-        <Text bold color={c.accent}>{theme.name}</Text>
-        <Badge label={theme.id} variant="info" />
-      </Box>
-      <Text dim>{theme.tagline}</Text>
-
-      <Box flexDirection="row" gap={1}>
-        {[c.bg, c.fg, c.accent, c.alt, c.muted].map((col, i) => (
-          <Text key={i} backgroundColor={col}>      </Text>
-        ))}
-      </Box>
-
-      <Box height={1} />
-
-      <Box borderStyle="round" borderColor={c.accent} padding={1} flexDirection="column">
-        <Text color={c.fg} bold>Hello, terminal.</Text>
-        <Text color={c.muted}>
-          Card styled with the theme&apos;s accent border and muted text.
+    <Box flexDirection="row" alignItems="center">
+      {hintKey && (
+        <Text color={GREYSCALE.borderFocused} backgroundColor={GREYSCALE.selectedBg} bold>
+          {` ${hintKey} `}
         </Text>
-      </Box>
-
-      <Box flexDirection="row" gap={2} alignItems="center">
-        <Box flexDirection="row" gap={1} alignItems="center">
-          <LiveDot color={c.accent} />
-          <Text color={c.accent}>online</Text>
-        </Box>
-        <Box flexDirection="row" gap={1} alignItems="center">
-          <LiveDot color={c.alt} />
-          <Text color={c.alt}>syncing</Text>
-        </Box>
-        <Text color={c.muted}>● idle</Text>
-      </Box>
+      )}
+      <Text
+        color={GREYSCALE.fg}
+        backgroundColor={isFocused ? GREYSCALE.selectedBg : undefined}
+        bold={isFocused}
+      >
+        {indent}{toggle}{node.label}
+      </Text>
     </Box>
   );
 }
 
-function Palette({ theme }: { theme: Theme }) {
-  const c = theme.colors;
-  return (
-    <Box flexDirection="column" padding={1} gap={0}>
-      <Text bold color={c.accent}>Palette — {theme.name}</Text>
-      <Text dim>{theme.tagline}</Text>
-      <Box height={1} />
-      <Swatch color={c.bg}     label="bg     " />
-      <Swatch color={c.fg}     label="fg     " />
-      <Swatch color={c.accent} label="accent " />
-      <Swatch color={c.alt}    label="alt    " />
-      <Swatch color={c.muted}  label="muted  " />
-      <Box height={1} />
-      <Text backgroundColor={c.bg} color={c.fg}>  Lorem ipsum dolor sit amet, consectetur.  </Text>
-      <Text backgroundColor={c.bg} color={c.accent} bold>  &gt; sudo make me a theme  </Text>
-      <Text backgroundColor={c.bg} color={c.alt}>  Secondary accent for links and marks.  </Text>
-      <Text backgroundColor={c.bg} color={c.muted}>  Muted text for metadata.  </Text>
-    </Box>
-  );
+type FlatItem = { node: TreeNode & { _expanded?: boolean }; level: number };
+
+function flattenVisible(nodes: TreeNode[], expandedIds: Set<string>, level = 0): FlatItem[] {
+  const out: FlatItem[] = [];
+  for (const node of nodes) {
+    const expanded = expandedIds.has(node.id);
+    out.push({ node: { ...node, _expanded: expanded }, level });
+    if (expanded && node.children) {
+      out.push(...flattenVisible(node.children, expandedIds, level + 1));
+    }
+  }
+  return out;
 }
-
-function Components({ theme }: { theme: Theme }) {
-  const c = theme.colors;
-  const dataRef = useRef<number[]>([2, 5, 3, 8, 4, 9, 6, 7, 10, 5, 8, 3, 7, 9, 4, 6, 8, 11, 5, 7]);
-  const [dataVersion, setDataVersion] = useState(0);
-
-  useTick(600, () => {
-    const next = [...dataRef.current.slice(1), Math.floor(Math.random() * 12) + 1];
-    dataRef.current = next;
-    setDataVersion((v) => v + 1);
-  });
-
-  return (
-    <Box flexDirection="column" gap={1} padding={1}>
-      <Text bold color={c.accent}>Components — {theme.name}</Text>
-
-      <Box flexDirection="row" gap={2} alignItems="center">
-        <Spinner type="dots" color={c.accent} />
-        <Text color={c.fg}>Loading modules…</Text>
-        <Spinner type="line" color={c.alt} />
-        <Text color={c.muted}>Fetching</Text>
-      </Box>
-
-      <Box flexDirection="row" gap={2}>
-        <Box flexDirection="column" flex={1} gap={0}>
-          <Text dim>CPU</Text>
-          <ProgressBar value={62} color={c.accent} showPercent />
-          <Text dim>MEM</Text>
-          <ProgressBar value={34} color={c.alt} showPercent />
-          <Text dim>DISK</Text>
-          <ProgressBar value={81} color={c.accent} showPercent />
-        </Box>
-        <Box flexDirection="column" width={24}>
-          <Text dim>Latency</Text>
-          <Gauge
-            value={42}
-            color={c.accent}
-            thresholds={[
-              { value: 60, color: c.alt },
-              { value: 85, color: "#ff4f4f" },
-            ]}
-            showValue
-          />
-        </Box>
-      </Box>
-
-      <Box flexDirection="column">
-        <Text dim>Throughput (live)</Text>
-        <Sparkline key={dataVersion} data={dataRef.current} color={c.accent} width={40} />
-      </Box>
-
-      <Divider />
-      <Box flexDirection="row" gap={1}>
-        <Badge label="stable" variant="success" />
-        <Badge label="beta" variant="warning" />
-        <Badge label="alpha" variant="outline" />
-      </Box>
-    </Box>
-  );
-}
-
-function CodeTab({ theme }: { theme: Theme }) {
-  const c = theme.colors;
-  return (
-    <Box flexDirection="column" padding={1} gap={1}>
-      <Text bold color={c.accent}>Code — {theme.name}</Text>
-      <Text dim>SyntaxHighlight widget renders with terminal-native truecolor.</Text>
-      <Box borderStyle="round" borderColor={c.muted} padding={1}>
-        <SyntaxHighlight language="typescript" code={CODE_SAMPLE} />
-      </Box>
-    </Box>
-  );
-}
-
-function HelpOverlay({ onClose, accent }: { onClose: () => void; accent: string }) {
-  useInput((e) => {
-    if (e.key === "escape" || e.key === "?" || e.key === "q") onClose();
-  });
-  return (
-    <Modal visible={true} onClose={onClose} title="Help" size="md">
-      <Box flexDirection="column" gap={0} padding={1}>
-        <Text bold color={accent}>Navigation</Text>
-        <Text><Kbd>j</Kbd> / <Kbd>k</Kbd>  next / previous theme</Text>
-        <Text><Kbd>↓</Kbd> / <Kbd>↑</Kbd>  same as j / k</Text>
-        <Text><Kbd>g</Kbd> / <Kbd>G</Kbd>  first / last theme</Text>
-        <Box height={1} />
-        <Text bold color={accent}>Views</Text>
-        <Text><Kbd>Tab</Kbd>          cycle views</Text>
-        <Text><Kbd>1</Kbd> <Kbd>2</Kbd> <Kbd>3</Kbd> <Kbd>4</Kbd>  jump to view</Text>
-        <Box height={1} />
-        <Text bold color={accent}>Other</Text>
-        <Text><Kbd>/</Kbd>   search themes</Text>
-        <Text><Kbd>?</Kbd>   toggle this help</Text>
-        <Text><Kbd>q</Kbd>   quit</Text>
-      </Box>
-    </Modal>
-  );
-}
-
-type TabKey = "overview" | "palette" | "components" | "code";
 
 function App() {
   const { exit } = useApp();
   const { width, height } = useTerminal();
-  const [index, setIndex] = useState(0);
-  const [tab, setTab] = useState<TabKey>("overview");
-  const [filter, setFilter] = useState("");
-  const [searchActive, setSearchActive] = useState(false);
+
+  const [searchFilter, setSearchFilter] = useState("");
+  const [searchMode, setSearchMode] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(["foundations", "components", "patterns"]));
+  const [focusedId, setFocusedId] = useState("color");
+  const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const [treeWidth, setTreeWidth] = useState(25);
+  const [topHeight, setTopHeight] = useState(55); // % of right column height
   const [showHelp, setShowHelp] = useState(false);
-  const uptimeRef = useRef(0);
-  const [, setUptimeTick] = useState(0);
+  const [activePane, setActivePane] = useState<"tree" | "top" | "bottom">("tree");
+  const [hintMode, setHintMode] = useState(false);
+  const [resizeMode, setResizeMode] = useState(false);
+  const [showFloating, setShowFloating] = useState(false);
 
-  useTick(1000, () => {
-    uptimeRef.current++;
-    setUptimeTick((t) => t + 1);
-  });
+  const flatTree = useMemo(
+    () => flattenVisible(TREE_DATA, expandedIds),
+    [expandedIds]
+  );
 
-  const filteredThemes = useMemo(() => {
-    if (!filter) return THEMES;
-    const f = filter.toLowerCase();
-    return THEMES.filter((t) =>
-      t.name.toLowerCase().includes(f) ||
-      t.id.toLowerCase().includes(f) ||
-      t.tagline.toLowerCase().includes(f)
+  const filteredTree = useMemo(() => {
+    if (!searchFilter) return flatTree;
+    const f = searchFilter.toLowerCase();
+    return flatTree.filter(({ node }) =>
+      node.label.toLowerCase().includes(f) ||
+      node.data?.desc?.toLowerCase().includes(f)
     );
-  }, [filter]);
+  }, [flatTree, searchFilter]);
 
-  const safeIndex = Math.min(index, Math.max(0, filteredThemes.length - 1));
-  const theme = filteredThemes[safeIndex] ?? THEMES[0]!;
+  const allNodes = useMemo(() => flattenVisible(TREE_DATA, new Set(["foundations", "components", "patterns"])), []);
+  const focusedNode = allNodes.find(({ node }) => node.id === focusedId)?.node;
+
+  const navigateTree = useCallback((direction: "up" | "down" | "left" | "right") => {
+    const idx = filteredTree.findIndex(({ node }) => node.id === focusedId);
+    if (idx === -1) return;
+
+    if (direction === "down") {
+      const next = filteredTree[(idx + 1) % filteredTree.length];
+      setFocusedId(next.node.id);
+    } else if (direction === "up") {
+      const next = filteredTree[(idx - 1 + filteredTree.length) % filteredTree.length];
+      setFocusedId(next.node.id);
+    } else if (direction === "left") {
+      if (expandedIds.has(focusedId)) {
+        expandedIds.delete(focusedId);
+        setExpandedIds(new Set(expandedIds));
+      }
+    } else if (direction === "right") {
+      if (filteredTree.find(({ node }) => node.id === focusedId)?.node.children?.length) {
+        expandedIds.add(focusedId);
+        setExpandedIds(new Set(expandedIds));
+      }
+    }
+  }, [focusedId, expandedIds, filteredTree]);
+
+  const cycleTab = useCallback((dir: 1 | -1) => {
+    const tabs: TabKey[] = ["overview", "properties", "code", "settings"];
+    const i = tabs.indexOf(activeTab);
+    setActiveTab(tabs[(i + dir + tabs.length) % tabs.length]!);
+  }, [activeTab]);
 
   useInput((e) => {
-    if (showHelp) return;
-
-    if (searchActive) {
-      if (e.key === "escape") { setSearchActive(false); setFilter(""); return; }
-      if (e.key === "return") { setSearchActive(false); return; }
-      if (e.key === "backspace") { setFilter((s) => s.slice(0, -1)); return; }
-      if (e.char && e.char.length === 1) setFilter((s) => s + e.char);
+    if (showFloating) {
+      if (e.key === "escape" || e.key === "f") {
+        setShowFloating(false);
+        return;
+      }
+      // Still allow 1-4 jumps to tree nodes while floating open
+      const shortcuts = ["color", "typography", "spacing", "radius"];
+      const digitMap: Record<string, number> = { "1":0, "2":1, "3":2, "4":3 };
+      if (e.char && digitMap[e.char] !== undefined) {
+        const id = shortcuts[digitMap[e.char]!];
+        if (id) { setFocusedId(id); setShowFloating(false); }
+        return;
+      }
+      return;
+    }
+    if (showHelp) {
+      if (e.key === "?" || e.key === "escape" || e.key === "q") {
+        setShowHelp(false);
+      }
       return;
     }
 
-    if (e.key === "q" || (e.key === "c" && e.ctrl) || e.key === "escape") exit();
-    if (e.key === "?") { setShowHelp(true); return; }
-    if (e.key === "/") { setSearchActive(true); setFilter(""); setIndex(0); return; }
-    if (e.key === "down" || e.key === "j") setIndex((i) => (i + 1) % Math.max(1, filteredThemes.length));
-    if (e.key === "up"   || e.key === "k") setIndex((i) => (i - 1 + Math.max(1, filteredThemes.length)) % Math.max(1, filteredThemes.length));
-    if (e.key === "g") setIndex(0);
-    if (e.key === "G") setIndex(Math.max(0, filteredThemes.length - 1));
-    if (e.key === "tab") {
-      const order: TabKey[] = ["overview", "palette", "components", "code"];
-      setTab((t) => order[(order.indexOf(t) + 1) % order.length]!);
+    if (searchMode) {
+      if (e.key === "escape" || e.key === "return") {
+        setSearchMode(false);
+      } else if (e.key === "backspace") {
+        setSearchFilter(s => s.slice(0, -1));
+      } else if (e.char && e.char.length === 1 && !e.ctrl && !e.meta) {
+        setSearchFilter(s => s + e.char);
+      }
+      return;
     }
-    if (e.key === "1") setTab("overview");
-    if (e.key === "2") setTab("palette");
-    if (e.key === "3") setTab("components");
-    if (e.key === "4") setTab("code");
+
+    // Resize mode — arrows grow/shrink the focused pane itself
+    if (resizeMode) {
+      if (e.key === "escape" || e.key === "capslock" || e.key === "r") {
+        setResizeMode(false);
+        return;
+      }
+      if (activePane === "tree") {
+        // Tree is left pane. Right = grow rightward. Left = shrink.
+        if (e.key === "left" || e.key === "h") setTreeWidth(w => Math.max(15, w - 3));
+        if (e.key === "right" || e.key === "l") setTreeWidth(w => Math.min(75, w + 3));
+      } else if (activePane === "top") {
+        // Top-right: left = grow leftward (tree shrinks). Down = grow downward.
+        if (e.key === "left" || e.key === "h") setTreeWidth(w => Math.max(15, w - 3));
+        if (e.key === "right" || e.key === "l") setTreeWidth(w => Math.min(75, w + 3));
+        if (e.key === "up" || e.key === "k") setTopHeight(h => Math.max(20, h - 5));
+        if (e.key === "down" || e.key === "j") setTopHeight(h => Math.min(80, h + 5));
+      } else if (activePane === "bottom") {
+        // Bottom-right: left = grow leftward (tree shrinks). Up = grow upward.
+        if (e.key === "left" || e.key === "h") setTreeWidth(w => Math.max(15, w - 3));
+        if (e.key === "right" || e.key === "l") setTreeWidth(w => Math.min(75, w + 3));
+        if (e.key === "up" || e.key === "k") setTopHeight(h => Math.max(20, h - 5));
+        if (e.key === "down" || e.key === "j") setTopHeight(h => Math.min(80, h + 5));
+      }
+      return;
+    }
+
+    // Global keys
+    if (e.ctrl && e.key === "c") { exit(); return; }
+    if (e.key === "q") { exit(); return; }
+    if (e.key === "?") { setShowHelp(true); return; }
+    if (e.key === "/") { setSearchMode(true); return; }
+    if (e.key === "f" || (e.ctrl && e.key === "p")) {
+      setShowFloating(v => !v);
+      return;
+    }
+
+    // Resize mode toggle — CapsLock (if terminal sends it) or `r`
+    if (e.key === "capslock" || e.key === "r") {
+      setResizeMode(true);
+      return;
+    }
+
+    // Hint mode (Ctrl+Space)
+    if (e.ctrl && (e.key === "space" || e.char === " ")) {
+      setHintMode(h => !h);
+      return;
+    }
+
+    // Pane cycle: Tab → tree → top → bottom → tree
+    if (e.key === "tab") {
+      setActivePane(p => p === "tree" ? "top" : p === "top" ? "bottom" : "tree");
+      setHintMode(false);
+      return;
+    }
+
+    // Number jumps
+    const digitMap: Record<string, number> = { "1":0, "2":1, "3":2, "4":3, "5":4, "6":5, "7":6, "8":7, "9":8 };
+    if (e.char && digitMap[e.char] !== undefined) {
+      const n = digitMap[e.char]!;
+      if (hintMode && activePane === "tree" && filteredTree[n]) {
+        setFocusedId(filteredTree[n].node.id);
+        setHintMode(false);
+        return;
+      }
+      const tabs: TabKey[] = ["overview", "properties", "code", "settings"];
+      if (n < tabs.length) {
+        setActiveTab(tabs[n]!);
+        setActivePane("top");
+        setHintMode(false);
+        return;
+      }
+    }
+
+    // Pane-specific navigation
+    if (activePane === "tree") {
+      if (e.key === "j" || e.key === "down") navigateTree("down");
+      else if (e.key === "k" || e.key === "up") navigateTree("up");
+      else if (e.key === "h" || e.key === "left") navigateTree("left");
+      else if (e.key === "l" || e.key === "right") navigateTree("right");
+    } else if (activePane === "top") {
+      if (e.key === "h" || e.key === "left") cycleTab(-1);
+      else if (e.key === "l" || e.key === "right") cycleTab(1);
+    }
   });
 
-  const sidebarWidth = width < 80 ? 18 : 24;
+  const treePixels = Math.floor((width * treeWidth) / 100);
 
   return (
-    <Box flexDirection="column" height="100%">
-      <Box
-        borderStyle="round"
-        borderColor={theme.colors.accent}
-        paddingX={1}
-        flexDirection="row"
-        alignItems="center"
-        gap={1}
-      >
-        <Text bold color={theme.colors.accent}>STORM</Text>
-        <Text dim>· theme showcase ·</Text>
-        <Text color={theme.colors.alt}>{theme.name}</Text>
-        <Box flex={1} />
-        <LiveDot color={theme.colors.accent} />
-        <Text dim>{width}×{height}</Text>
+    <Box flexDirection="column" width={width} height={height}>
+      {/* Header */}
+      <Box borderStyle="round" borderColor={GREYSCALE.border} paddingX={1}>
+        <Text bold color={GREYSCALE.fg}>STORM</Text>
+        <Text dim color={GREYSCALE.dim}>  ·  Feature Explorer  ·  </Text>
+        <Text color={GREYSCALE.fg}>{focusedNode?.label}</Text>
       </Box>
 
-      <Box flexDirection="row" flexGrow={1}>
+      {/* Main Content */}
+      <Box flex={1} flexDirection="row">
+        {/* Tree Pane */}
         <Box
+          width={treePixels}
           flexDirection="column"
-          width={sidebarWidth}
           borderStyle="round"
-          borderColor={theme.colors.muted}
+          borderColor={activePane === "tree" ? GREYSCALE.borderFocused : GREYSCALE.border}
           paddingX={1}
+          paddingTop={1}
         >
-          <Text bold dim>THEMES</Text>
-          {searchActive || filter ? (
-            <Text color={theme.colors.accent}>/{filter}{searchActive ? "_" : ""}</Text>
-          ) : (
-            <Text dim>{filteredThemes.length} total</Text>
+          {searchMode && (
+            <Box
+              flexDirection="row"
+              marginBottom={1}
+              borderStyle="round"
+              borderColor={GREYSCALE.borderFocused}
+              paddingX={1}
+            >
+              <Text dim>/ </Text>
+              <Text color={GREYSCALE.fg}>{searchFilter}_</Text>
+            </Box>
           )}
+          <Text bold dim color={GREYSCALE.dim}>ITEMS</Text>
+          <Text dim color={GREYSCALE.dim}>{filteredTree.length} total</Text>
           <Box height={1} />
-          {filteredThemes.length === 0 ? (
-            <Text color={theme.colors.muted}>no matches</Text>
-          ) : (
-            filteredThemes.map((t, i) => {
-              const active = i === safeIndex;
-              return (
-                <Text
-                  key={t.id}
-                  color={active ? theme.colors.bg : theme.colors.fg}
-                  backgroundColor={active ? theme.colors.accent : undefined}
-                  bold={active}
-                >
-                  {active ? "▶ " : "  "}{t.name}
-                </Text>
-              );
-            })
-          )}
+          <ScrollView flex={1}>
+            {filteredTree.length === 0 ? (
+              <Text color={GREYSCALE.dim}>no matches</Text>
+            ) : (
+              filteredTree.map(({ node, level }, i) => (
+                <TreeRow
+                  key={node.id}
+                  node={node}
+                  level={level}
+                  isFocused={node.id === focusedId}
+                  hintKey={hintMode && activePane === "tree" && i < 9 ? String(i + 1) : undefined}
+                />
+              ))
+            )}
+          </ScrollView>
         </Box>
 
-        <Box flexDirection="column" flexGrow={1} borderStyle="round" borderColor={theme.colors.accent}>
-          <Tabs
-            tabs={[
-              { key: "overview",   label: "Overview" },
-              { key: "palette",    label: "Palette" },
-              { key: "components", label: "Components" },
-              { key: "code",       label: "Code" },
-            ]}
-            activeKey={tab}
-            onChange={(k) => setTab(k as TabKey)}
-          />
-          {filteredThemes.length === 0 ? (
-            <Box padding={2}>
-              <Text color={theme.colors.muted}>No themes match &ldquo;{filter}&rdquo;. Press Esc to clear.</Text>
+        {/* Right column: top + bottom stacked */}
+        <Box flexDirection="column" flex={1}>
+          {/* Top-right pane */}
+          <Box
+            flexDirection="column"
+            flexGrow={topHeight}
+            flexShrink={1}
+            flexBasis={0}
+            borderStyle="round"
+            borderColor={activePane === "top" ? GREYSCALE.borderFocused : GREYSCALE.border}
+            paddingX={1}
+            paddingTop={1}
+          >
+            <Box flexDirection="row" gap={1}>
+              {(["overview", "properties", "code", "settings"] as TabKey[]).map((k, i) => {
+                const labels = { overview: "Overview", properties: "Properties", code: "Code", settings: "Settings" };
+                const isActive = activeTab === k;
+                const showHint = hintMode && activePane === "top";
+                return (
+                  <Text
+                    key={k}
+                    bold={isActive || showHint}
+                    dim={!isActive && !showHint}
+                    color={showHint ? GREYSCALE.borderFocused : GREYSCALE.fg}
+                    backgroundColor={isActive ? GREYSCALE.selectedBg : (showHint ? GREYSCALE.selectedBg : undefined)}
+                  >
+                    {showHint ? ` [${i + 1}] ${labels[k]} ` : ` ${i + 1} ${labels[k]} `}
+                  </Text>
+                );
+              })}
             </Box>
-          ) : tab === "overview"   ? <Overview   theme={theme} />
-            : tab === "palette"    ? <Palette    theme={theme} />
-            : tab === "components" ? <Components theme={theme} />
-            :                        <CodeTab    theme={theme} />}
 
-          <Divider />
-          <Box paddingX={1} flexDirection="row" gap={2}>
-            <Text dim>index</Text>
-            <Text color={theme.colors.accent}>{safeIndex + 1}/{filteredThemes.length}</Text>
-            <Text dim>uptime</Text>
-            <Text color={theme.colors.alt}>{uptimeRef.current}s</Text>
+            <Box flex={1} marginTop={1}>
+              {!focusedNode ? (
+                <Text color={GREYSCALE.dim}>select an item</Text>
+              ) : activeTab === "overview" ? (
+                <Box flexDirection="column" gap={1}>
+                  <Text bold color={GREYSCALE.fg}>{focusedNode.label}</Text>
+                  {focusedNode.data && Object.entries(focusedNode.data).map(([k, v]) => (
+                    <Box key={k} flexDirection="row" gap={1}>
+                      <Text dim>{k}:</Text>
+                      <Text color={GREYSCALE.fg}>
+                        {typeof v === "string" ? v : Array.isArray(v) ? v.join(", ") : JSON.stringify(v)}
+                      </Text>
+                    </Box>
+                  ))}
+                </Box>
+              ) : activeTab === "properties" ? (
+                <Box flexDirection="column">
+                  <Text dim>id</Text>
+                  <Text color={GREYSCALE.fg}>{focusedNode.id}</Text>
+                  <Box height={1} />
+                  <Text dim>level</Text>
+                  <Text color={GREYSCALE.fg}>{flatTree.find(({ node }) => node.id === focusedId)?.level}</Text>
+                  <Box height={1} />
+                  <Text dim>children</Text>
+                  <Text color={GREYSCALE.fg}>{focusedNode.children?.length || 0}</Text>
+                </Box>
+              ) : activeTab === "code" ? (
+                <Box borderStyle="round" borderColor={GREYSCALE.border} padding={1}>
+                  <SyntaxHighlight language="typescript" code={CODE_SAMPLE} />
+                </Box>
+              ) : (
+                <Box flexDirection="column" gap={1}>
+                  <Text bold color={GREYSCALE.fg}>Settings</Text>
+                  <Text dim>Tree width: {treeWidth}%</Text>
+                  <Text dim>Filter: {searchFilter || "(none)"}</Text>
+                  <Text dim>Expanded nodes: {expandedIds.size}</Text>
+                </Box>
+              )}
+            </Box>
+          </Box>
+
+          {/* Bottom-right pane */}
+          <Box
+            flexDirection="column"
+            flexGrow={100 - topHeight}
+            flexShrink={1}
+            flexBasis={0}
+            borderStyle="round"
+            borderColor={activePane === "bottom" ? GREYSCALE.borderFocused : GREYSCALE.border}
+            paddingX={1}
+          >
+            <Text bold dim color={GREYSCALE.dim}>STATUS / PREVIEW</Text>
+            <Box flexDirection="row" gap={2}>
+              <Box flexDirection="column" flex={1}>
+                <Box flexDirection="row" gap={1}>
+                  <Text dim>pane:</Text>
+                  <Text color={GREYSCALE.fg}>{activePane}</Text>
+                </Box>
+                <Box flexDirection="row" gap={1}>
+                  <Text dim>tab:</Text>
+                  <Text color={GREYSCALE.fg}>{activeTab}</Text>
+                </Box>
+                <Box flexDirection="row" gap={1}>
+                  <Text dim>hints:</Text>
+                  <Text color={GREYSCALE.fg}>{hintMode ? "on" : "off"}</Text>
+                </Box>
+                <Box flexDirection="row" gap={1}>
+                  <Text dim>resize:</Text>
+                  <Text color={resizeMode ? GREYSCALE.borderFocused : GREYSCALE.fg} bold={resizeMode}>
+                    {resizeMode ? "ON" : "off"}
+                  </Text>
+                </Box>
+              </Box>
+              <Box flexDirection="column" flex={1}>
+                <Box flexDirection="row" gap={1}>
+                  <Text dim>id:</Text>
+                  <Text color={GREYSCALE.fg}>{focusedNode?.id ?? "—"}</Text>
+                </Box>
+                <Box flexDirection="row" gap={1}>
+                  <Text dim>label:</Text>
+                  <Text color={GREYSCALE.fg}>{focusedNode?.label ?? "—"}</Text>
+                </Box>
+                <Box flexDirection="row" gap={1}>
+                  <Text dim>filter:</Text>
+                  <Text color={GREYSCALE.fg}>{searchFilter || "(none)"}</Text>
+                </Box>
+                <Box flexDirection="row" gap={1}>
+                  <Text dim>matches:</Text>
+                  <Text color={GREYSCALE.fg}>{filteredTree.length}</Text>
+                </Box>
+              </Box>
+              <Box flexDirection="column" flex={1}>
+                <Box flexDirection="row" gap={1}>
+                  <Text dim>tree:</Text>
+                  <Text color={GREYSCALE.fg}>{treeWidth}%</Text>
+                </Box>
+                <Box flexDirection="row" gap={1}>
+                  <Text dim>top:</Text>
+                  <Text color={GREYSCALE.fg}>{topHeight}%</Text>
+                </Box>
+                <Box flexDirection="row" gap={1}>
+                  <Text dim>expanded:</Text>
+                  <Text color={GREYSCALE.fg}>{expandedIds.size}/{TREE_DATA.length}</Text>
+                </Box>
+                <Box flexDirection="row" gap={1}>
+                  <Text dim>term:</Text>
+                  <Text color={GREYSCALE.fg}>{width}×{height}</Text>
+                </Box>
+              </Box>
+            </Box>
           </Box>
         </Box>
       </Box>
 
+      {/* Footer */}
       <Footer
-        bindings={[
-          { key: "j/k",   label: "theme" },
-          { key: "g/G",   label: "jump" },
-          { key: "Tab",   label: "view" },
-          { key: "/",     label: "search" },
-          { key: "?",     label: "help" },
-          { key: "q",     label: "quit" },
+        bindings={resizeMode ? [
+          { key: "arrows", label: `resize ${activePane}` },
+          { key: "Esc/r", label: "exit resize" },
+        ] : [
+          { key: "Tab", label: `pane (${activePane})` },
+          { key: "r", label: "resize mode" },
+          { key: "C-Spc", label: hintMode ? "hints ON" : "hints" },
+          { key: "j/k", label: activePane === "tree" ? "nav" : "—" },
+          { key: "h/l", label: activePane === "tree" ? "fold" : activePane === "top" ? "tab" : "—" },
+          { key: "f", label: "float panel" },
+          { key: "/", label: "search" },
+          { key: "?", label: "help" },
+          { key: "q", label: "quit" },
         ]}
       />
 
-      {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} accent={theme.colors.accent} />}
+      {/* Floating pane — absolute-positioned overlay */}
+      {showFloating && (
+        <Box
+          position="absolute"
+          top={Math.max(2, Math.floor(height / 2) - 10)}
+          left={Math.max(2, Math.floor(width / 2) - 22)}
+          width={44}
+          flexDirection="column"
+          borderStyle="double"
+          borderColor={GREYSCALE.borderFocused}
+          paddingX={2}
+          paddingY={1}
+          backgroundColor={GREYSCALE.bg}
+        >
+          <Text bold color={GREYSCALE.borderFocused}>✦ Quick Panel</Text>
+          <Box height={1} />
+          <Text dim>Jump to common nodes:</Text>
+          <Box flexDirection="column" marginTop={1}>
+            <Text><Kbd>1</Kbd>  Color System</Text>
+            <Text><Kbd>2</Kbd>  Typography</Text>
+            <Text><Kbd>3</Kbd>  Spacing Scale</Text>
+            <Text><Kbd>4</Kbd>  Border Radius</Text>
+          </Box>
+          <Box height={1} />
+          <Text bold color={GREYSCALE.fg}>Current</Text>
+          <Box flexDirection="row" gap={1}>
+            <Text dim>selection:</Text>
+            <Text color={GREYSCALE.fg}>{focusedNode?.label ?? "—"}</Text>
+          </Box>
+          <Box flexDirection="row" gap={1}>
+            <Text dim>pane:</Text>
+            <Text color={GREYSCALE.fg}>{activePane}</Text>
+          </Box>
+          <Box height={1} />
+          <Text dim>Press <Kbd>f</Kbd> or <Kbd>Esc</Kbd> to close</Text>
+        </Box>
+      )}
+
+      {/* Help Modal */}
+      {showHelp && (
+        <Modal
+          visible={true}
+          onClose={() => setShowHelp(false)}
+          title="Help"
+          size="md"
+        >
+          <Box flexDirection="column" gap={1} padding={1}>
+            <Text bold color={GREYSCALE.fg}>Panes</Text>
+            <Text><Kbd>Tab</Kbd>  — cycle: tree → top-right → bottom-right</Text>
+            <Text><Kbd>Ctrl+Space</Kbd>  — toggle shortcut hints</Text>
+            <Box height={1} />
+            <Text bold color={GREYSCALE.fg}>Tree focused</Text>
+            <Text><Kbd>j</Kbd>/<Kbd>k</Kbd> or <Kbd>↓</Kbd>/<Kbd>↑</Kbd>  — nav items</Text>
+            <Text><Kbd>h</Kbd>/<Kbd>l</Kbd> or <Kbd>←</Kbd>/<Kbd>→</Kbd>  — fold/unfold</Text>
+            <Box height={1} />
+            <Text bold color={GREYSCALE.fg}>Top-right focused</Text>
+            <Text><Kbd>h</Kbd>/<Kbd>l</Kbd> or <Kbd>←</Kbd>/<Kbd>→</Kbd>  — prev/next tab</Text>
+            <Text><Kbd>1</Kbd>-<Kbd>4</Kbd>  — jump to tab</Text>
+            <Box height={1} />
+            <Text bold color={GREYSCALE.fg}>Resize mode</Text>
+            <Text><Kbd>r</Kbd> or <Kbd>CapsLock</Kbd>  — enter resize mode</Text>
+            <Text>  arrows resize focused pane; <Kbd>Esc</Kbd> exits</Text>
+            <Box height={1} />
+            <Text bold color={GREYSCALE.fg}>Other</Text>
+            <Text><Kbd>/</Kbd>  — search  ·  <Kbd>?</Kbd>  — help  ·  <Kbd>q</Kbd>  — quit</Text>
+          </Box>
+        </Modal>
+      )}
     </Box>
   );
 }

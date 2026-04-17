@@ -1,6 +1,9 @@
 {
   "name": "ui",
   "version": "1.0.0",
+  "bin": {
+    "ui": "./bin/ui"
+  },
   "scripts": {
     "dev": "fuser -k 3000/tcp 2>/dev/null; bun --hot server.ts &"
   },
