@@ -12,6 +12,21 @@ import {
   useApp,
   useTerminal,
 } from "@orchetron/storm";
+import { THEMES, renderButton, type TuiTheme, type ButtonStyle } from "./themes";
+
+type Mode = "showcase" | "style";
+
+function parseMode(): Mode {
+  const g = globalThis as any;
+  const argv: string[] = g.process?.argv ?? (g.Bun?.argv ?? []);
+  for (const a of argv) {
+    if (a === "--mode=style" || a === "--style") return "style";
+    if (a === "--mode=showcase") return "showcase";
+  }
+  return "showcase";
+}
+
+/* ─────────────────────────── Showcase data ─────────────────────────── */
 
 type TreeNode = {
   id: string;
@@ -21,39 +36,15 @@ type TreeNode = {
   _expanded?: boolean;
 };
 
-const GREYSCALE = {
-  bg: "#0B0B0D",
-  fg: "#F4F4F5",
-  border: "#525252",
-  borderFocused: "#FFFFFF",
-  dim: "#71717A",
-  selected: "#F4F4F5",
-  selectedBg: "#2E2E32",
-};
-
-const CODE_SAMPLE = `// Greyscale-only theme
-export const theme = {
-  colors: {
-    bg: "#0B0B0D",
-    fg: "#F4F4F5",
-    border: "#525252",
-    dim: "#71717A",
-  },
-  typography: {
-    body: "Inter, system-ui",
-    mono: "JetBrains Mono",
-  },
-};`;
-
 const TREE_DATA: TreeNode[] = [
   {
     id: "foundations",
     label: "Foundations",
     children: [
-      { id: "color", label: "Color System", data: { desc: "16-level greyscale" } },
-      { id: "typography", label: "Typography", data: { desc: "Body + mono stacks" } },
-      { id: "spacing", label: "Spacing Scale", data: { desc: "4px base unit" } },
-      { id: "radius", label: "Border Radius", data: { desc: "0px, 4px, 8px, 16px" } },
+      { id: "color", label: "Color System", data: { desc: "Theme palette" } },
+      { id: "typography", label: "Typography", data: { desc: "Body + mono" } },
+      { id: "spacing", label: "Spacing Scale", data: { desc: "1ch base" } },
+      { id: "radius", label: "Border Style", data: { desc: "Varies per theme" } },
     ],
   },
   {
@@ -63,91 +54,625 @@ const TREE_DATA: TreeNode[] = [
       { id: "button", label: "Button", data: { variants: ["primary", "secondary", "ghost"] } },
       { id: "input", label: "Input Field", data: { variants: ["text", "search", "textarea"] } },
       { id: "card", label: "Card", data: { variants: ["default", "elevated", "outlined"] } },
-      { id: "modal", label: "Modal", data: { features: ["focus trap", "backdrop", "animations"] } },
+      { id: "modal", label: "Modal", data: { features: ["focus trap", "backdrop"] } },
     ],
   },
   {
     id: "patterns",
     label: "Patterns",
     children: [
-      { id: "forms", label: "Forms", data: { includes: ["validation", "error handling"] } },
-      { id: "tables", label: "Data Tables", data: { includes: ["sorting", "filtering", "pagination"] } },
-      { id: "nav", label: "Navigation", data: { includes: ["breadcrumbs", "tabs", "menu"] } },
+      { id: "forms", label: "Forms", data: { includes: ["validation", "errors"] } },
+      { id: "tables", label: "Data Tables", data: { includes: ["sort", "filter"] } },
+      { id: "nav", label: "Navigation", data: { includes: ["tabs", "menus"] } },
     ],
   },
 ];
 
 type TabKey = "overview" | "properties" | "code" | "settings";
 
-function TreeRow({
-  node,
-  level,
-  isFocused,
-  hintKey,
-}: {
-  node: TreeNode;
-  level: number;
-  isFocused: boolean;
-  hintKey?: string;
-}) {
-  const hasChildren = node.children && node.children.length > 0;
-  const toggle = hasChildren ? (node._expanded ? "▼ " : "▶ ") : "  ";
-  const indent = "  ".repeat(level);
-
-  return (
-    <Box flexDirection="row" alignItems="center">
-      {hintKey && (
-        <Text color={GREYSCALE.borderFocused} backgroundColor={GREYSCALE.selectedBg} bold>
-          {` ${hintKey} `}
-        </Text>
-      )}
-      <Text
-        color={GREYSCALE.fg}
-        backgroundColor={isFocused ? GREYSCALE.selectedBg : undefined}
-        bold={isFocused}
-      >
-        {indent}{toggle}{node.label}
-      </Text>
-    </Box>
-  );
-}
-
-type FlatItem = { node: TreeNode & { _expanded?: boolean }; level: number };
-
-function flattenVisible(nodes: TreeNode[], expandedIds: Set<string>, level = 0): FlatItem[] {
-  const out: FlatItem[] = [];
+function flattenVisible(nodes: TreeNode[], expandedIds: Set<string>, level = 0): { node: TreeNode; level: number }[] {
+  const out: { node: TreeNode; level: number }[] = [];
   for (const node of nodes) {
     const expanded = expandedIds.has(node.id);
     out.push({ node: { ...node, _expanded: expanded }, level });
-    if (expanded && node.children) {
-      out.push(...flattenVisible(node.children, expandedIds, level + 1));
-    }
+    if (expanded && node.children) out.push(...flattenVisible(node.children, expandedIds, level + 1));
   }
   return out;
 }
 
-function App() {
+/* ─────────────────────────── Theme sidebar ─────────────────────────── */
+
+function ThemeSidebar({
+  themes,
+  activeId,
+  onPick,
+  focused,
+  focusIdx,
+  theme,
+}: {
+  themes: TuiTheme[];
+  activeId: string;
+  onPick: (id: string) => void;
+  focused: boolean;
+  focusIdx: number;
+  theme: TuiTheme;
+}) {
+  return (
+    <Box
+      flexDirection="column"
+      width={22}
+      borderStyle={theme.borderStyle}
+      borderColor={focused ? theme.colors.borderFocus : theme.colors.border}
+      paddingX={1}
+      paddingTop={1}
+    >
+      <Text bold color={theme.colors.accent}>UI TUI</Text>
+      <Text dim color={theme.colors.dim}>{themes.length} themes</Text>
+      <Box height={1} />
+      <ScrollView flex={1}>
+        {themes.map((t, i) => {
+          const isActive = t.id === activeId;
+          const isFocused = focused && i === focusIdx;
+          return (
+            <Box key={t.id} flexDirection="row" alignItems="center">
+              <Text
+                color={isActive ? theme.colors.selected : theme.colors.fg}
+                backgroundColor={
+                  isActive ? theme.colors.selectedBg :
+                  isFocused ? theme.colors.border : undefined
+                }
+                bold={isActive || isFocused}
+              >
+                {" "}{t.emoji} {t.name.padEnd(14)}
+              </Text>
+            </Box>
+          );
+        })}
+      </ScrollView>
+    </Box>
+  );
+}
+
+/* ─────────────────────────── Showcase view ─────────────────────────── */
+
+const CODE_SAMPLE = `// Active theme
+export const theme = {
+  id: "__ID__",
+  border: "__BORDER__",
+  button: "__BUTTON__",
+};`;
+
+function ShowcaseView({
+  theme,
+  activePane,
+  hintMode,
+  resizeMode,
+  treeWidth,
+  topHeight,
+  searchFilter,
+  searchMode,
+  expandedIds,
+  focusedId,
+  activeTab,
+  setFocusedId,
+  setActiveTab,
+  filteredTree,
+  focusedNode,
+  flatTree,
+}: {
+  theme: TuiTheme;
+  activePane: "themes" | "tree" | "top" | "bottom";
+  hintMode: boolean;
+  resizeMode: boolean;
+  treeWidth: number;
+  topHeight: number;
+  searchFilter: string;
+  searchMode: boolean;
+  expandedIds: Set<string>;
+  focusedId: string;
+  activeTab: TabKey;
+  setFocusedId: (id: string) => void;
+  setActiveTab: (t: TabKey) => void;
+  filteredTree: { node: TreeNode; level: number }[];
+  focusedNode: TreeNode | undefined;
+  flatTree: { node: TreeNode; level: number }[];
+}) {
+  const c = theme.colors;
+  const treeFocused = activePane === "tree";
+  const topFocused = activePane === "top";
+  const bottomFocused = activePane === "bottom";
+
+  return (
+    <Box flex={1} flexDirection="row">
+      {/* Tree */}
+      <Box
+        width={Math.max(16, treeWidth)}
+        flexDirection="column"
+        borderStyle={theme.borderStyle}
+        borderColor={treeFocused ? c.borderFocus : c.border}
+        paddingX={1}
+        paddingTop={1}
+      >
+        {searchMode && (
+          <Box
+            flexDirection="row"
+            marginBottom={1}
+            borderStyle={theme.borderStyle}
+            borderColor={c.borderFocus}
+            paddingX={1}
+          >
+            <Text dim color={c.dim}>/ </Text>
+            <Text color={c.fg}>{searchFilter}_</Text>
+          </Box>
+        )}
+        <Text bold dim color={c.dim}>ITEMS</Text>
+        <Text dim color={c.dim}>{filteredTree.length} total</Text>
+        <Box height={1} />
+        <ScrollView flex={1}>
+          {filteredTree.length === 0 ? (
+            <Text color={c.dim}>no matches</Text>
+          ) : (
+            filteredTree.map(({ node, level }, i) => {
+              const isFocused = node.id === focusedId;
+              const hintKey = hintMode && treeFocused && i < 9 ? String(i + 1) : undefined;
+              const hasChildren = node.children && node.children.length > 0;
+              const toggle = hasChildren ? (node._expanded ? "▼ " : "▶ ") : "  ";
+              const indent = "  ".repeat(level);
+              return (
+                <Box key={node.id} flexDirection="row" alignItems="center">
+                  {hintKey && (
+                    <Text color={c.borderFocus} backgroundColor={c.selectedBg} bold>
+                      {` ${hintKey} `}
+                    </Text>
+                  )}
+                  <Text
+                    color={isFocused ? c.selected : c.fg}
+                    backgroundColor={isFocused ? c.selectedBg : undefined}
+                    bold={isFocused}
+                  >
+                    {indent}{toggle}{node.label}
+                  </Text>
+                </Box>
+              );
+            })
+          )}
+        </ScrollView>
+      </Box>
+
+      {/* Right column */}
+      <Box flexDirection="column" flex={1}>
+        {/* Top-right */}
+        <Box
+          flexDirection="column"
+          flexGrow={topHeight}
+          flexShrink={1}
+          flexBasis={0}
+          borderStyle={theme.borderStyle}
+          borderColor={topFocused ? c.borderFocus : c.border}
+          paddingX={1}
+          paddingTop={1}
+        >
+          <Box flexDirection="row" gap={1}>
+            {(["overview", "properties", "code", "settings"] as TabKey[]).map((k, i) => {
+              const labels = { overview: "Overview", properties: "Properties", code: "Code", settings: "Settings" };
+              const isActive = activeTab === k;
+              const showHint = hintMode && topFocused;
+              return (
+                <Text
+                  key={k}
+                  bold={isActive || showHint}
+                  dim={!isActive && !showHint}
+                  color={showHint ? c.borderFocus : (isActive ? c.selected : c.fg)}
+                  backgroundColor={isActive ? c.selectedBg : (showHint ? c.selectedBg : undefined)}
+                >
+                  {showHint ? ` [${i + 1}] ${labels[k]} ` : ` ${i + 1} ${labels[k]} `}
+                </Text>
+              );
+            })}
+          </Box>
+
+          <Box flex={1} marginTop={1}>
+            {!focusedNode ? (
+              <Text color={c.dim}>select an item</Text>
+            ) : activeTab === "overview" ? (
+              <Box flexDirection="column" gap={1}>
+                <Text bold color={c.fg}>{focusedNode.label}</Text>
+                {focusedNode.data && Object.entries(focusedNode.data).map(([k, v]) => (
+                  <Box key={k} flexDirection="row" gap={1}>
+                    <Text dim color={c.dim}>{k}:</Text>
+                    <Text color={c.fg}>
+                      {typeof v === "string" ? v : Array.isArray(v) ? v.join(", ") : JSON.stringify(v)}
+                    </Text>
+                  </Box>
+                ))}
+                <Box height={1} />
+                <Text dim color={c.dim}>theme buttons</Text>
+                <Box flexDirection="row" gap={2}>
+                  <Text color={c.selected} backgroundColor={c.accent} bold>
+                    {renderButton("Primary", theme.buttonStyle)}
+                  </Text>
+                  <Text color={c.fg}>{renderButton("Ghost", theme.buttonStyle)}</Text>
+                </Box>
+              </Box>
+            ) : activeTab === "properties" ? (
+              <Box flexDirection="column">
+                <Text dim color={c.dim}>id</Text>
+                <Text color={c.fg}>{focusedNode.id}</Text>
+                <Box height={1} />
+                <Text dim color={c.dim}>level</Text>
+                <Text color={c.fg}>{flatTree.find(({ node }) => node.id === focusedId)?.level}</Text>
+                <Box height={1} />
+                <Text dim color={c.dim}>children</Text>
+                <Text color={c.fg}>{focusedNode.children?.length || 0}</Text>
+              </Box>
+            ) : activeTab === "code" ? (
+              <Box borderStyle={theme.borderStyle} borderColor={c.border} padding={1}>
+                <SyntaxHighlight
+                  language="typescript"
+                  code={CODE_SAMPLE
+                    .replace("__ID__", theme.id)
+                    .replace("__BORDER__", theme.borderStyle)
+                    .replace("__BUTTON__", theme.buttonStyle)}
+                />
+              </Box>
+            ) : (
+              <Box flexDirection="column" gap={1}>
+                <Text bold color={c.fg}>Settings</Text>
+                <Text dim color={c.dim}>Theme: {theme.name}</Text>
+                <Text dim color={c.dim}>Tree width: {treeWidth} cols</Text>
+                <Text dim color={c.dim}>Filter: {searchFilter || "(none)"}</Text>
+                <Text dim color={c.dim}>Expanded nodes: {expandedIds.size}</Text>
+              </Box>
+            )}
+          </Box>
+        </Box>
+
+        {/* Bottom-right */}
+        <Box
+          flexDirection="column"
+          flexGrow={100 - topHeight}
+          flexShrink={1}
+          flexBasis={0}
+          borderStyle={theme.borderStyle}
+          borderColor={bottomFocused ? c.borderFocus : c.border}
+          paddingX={1}
+        >
+          <Text bold dim color={c.dim}>STATUS / PREVIEW</Text>
+          <Box flexDirection="row" gap={2}>
+            <Box flexDirection="column" flex={1}>
+              <Box flexDirection="row" gap={1}>
+                <Text dim color={c.dim}>theme:</Text>
+                <Text color={c.accent}>{theme.name}</Text>
+              </Box>
+              <Box flexDirection="row" gap={1}>
+                <Text dim color={c.dim}>border:</Text>
+                <Text color={c.fg}>{theme.borderStyle}</Text>
+              </Box>
+              <Box flexDirection="row" gap={1}>
+                <Text dim color={c.dim}>button:</Text>
+                <Text color={c.fg}>{theme.buttonStyle}</Text>
+              </Box>
+              <Box flexDirection="row" gap={1}>
+                <Text dim color={c.dim}>pane:</Text>
+                <Text color={c.fg}>{activePane}</Text>
+              </Box>
+            </Box>
+            <Box flexDirection="column" flex={1}>
+              <Box flexDirection="row" gap={1}>
+                <Text dim color={c.dim}>id:</Text>
+                <Text color={c.fg}>{focusedNode?.id ?? "—"}</Text>
+              </Box>
+              <Box flexDirection="row" gap={1}>
+                <Text dim color={c.dim}>label:</Text>
+                <Text color={c.fg}>{focusedNode?.label ?? "—"}</Text>
+              </Box>
+              <Box flexDirection="row" gap={1}>
+                <Text dim color={c.dim}>filter:</Text>
+                <Text color={c.fg}>{searchFilter || "(none)"}</Text>
+              </Box>
+              <Box flexDirection="row" gap={1}>
+                <Text dim color={c.dim}>matches:</Text>
+                <Text color={c.fg}>{filteredTree.length}</Text>
+              </Box>
+            </Box>
+            <Box flexDirection="column" flex={1}>
+              <Box flexDirection="row" gap={1}>
+                <Text dim color={c.dim}>hints:</Text>
+                <Text color={c.fg}>{hintMode ? "on" : "off"}</Text>
+              </Box>
+              <Box flexDirection="row" gap={1}>
+                <Text dim color={c.dim}>resize:</Text>
+                <Text color={resizeMode ? c.borderFocus : c.fg} bold={resizeMode}>
+                  {resizeMode ? "ON" : "off"}
+                </Text>
+              </Box>
+              <Box flexDirection="row" gap={1}>
+                <Text dim color={c.dim}>tree:</Text>
+                <Text color={c.fg}>{treeWidth}</Text>
+              </Box>
+              <Box flexDirection="row" gap={1}>
+                <Text dim color={c.dim}>top:</Text>
+                <Text color={c.fg}>{topHeight}%</Text>
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+/* ─────────────────────────── Style Guide view ─────────────────────────── */
+
+function StyleSection({
+  title,
+  theme,
+  children,
+}: {
+  title: string;
+  theme: TuiTheme;
+  children: React.ReactNode;
+}) {
+  return (
+    <Box
+      flexDirection="column"
+      borderStyle={theme.borderStyle}
+      borderColor={theme.colors.border}
+      paddingX={1}
+      paddingTop={1}
+      paddingBottom={1}
+    >
+      <Text bold color={theme.colors.accent}>{title}</Text>
+      <Box height={1} />
+      {children}
+    </Box>
+  );
+}
+
+function Swatch({ label, color, theme }: { label: string; color: string; theme: TuiTheme }) {
+  return (
+    <Box flexDirection="column" marginRight={2}>
+      <Text color={theme.colors.bg} backgroundColor={color} bold>
+        {"       "}
+      </Text>
+      <Text color={theme.colors.bg} backgroundColor={color}>
+        {"       "}
+      </Text>
+      <Text color={theme.colors.fg}>{label.padEnd(9)}</Text>
+      <Text dim color={theme.colors.dim}>{color}</Text>
+    </Box>
+  );
+}
+
+function StyleGuideView({ theme }: { theme: TuiTheme }) {
+  const c = theme.colors;
+  const allButtonStyles: ButtonStyle[] = ["plain", "bracket", "brace", "angle", "fill", "shaded", "double"];
+  const allBorders: { name: string; style: "round" | "single" | "double" | "heavy" | "ascii" | "storm" }[] = [
+    { name: "round", style: "round" },
+    { name: "single", style: "single" },
+    { name: "double", style: "double" },
+    { name: "heavy", style: "heavy" },
+    { name: "ascii", style: "ascii" },
+    { name: "storm", style: "storm" },
+  ];
+
+  return (
+    <ScrollView flex={1}>
+      <Box flexDirection="column" gap={1} paddingX={1}>
+        {/* Header */}
+        <Box flexDirection="column" paddingX={1} paddingY={1}>
+          <Text bold color={c.accent}>◇ STYLE GUIDE · {theme.name.toUpperCase()}</Text>
+          <Text dim color={c.dim}>{theme.description}</Text>
+          <Text dim color={c.dim}>
+            border: {theme.borderStyle}  ·  button: {theme.buttonStyle}  ·  corners: {theme.cornerLabel}
+          </Text>
+        </Box>
+
+        {/* Colour tokens */}
+        <StyleSection title="COLOUR TOKENS" theme={theme}>
+          <Box flexDirection="row" flexWrap="wrap">
+            <Swatch label="bg"       color={c.bg}          theme={theme} />
+            <Swatch label="fg"       color={c.fg}          theme={theme} />
+            <Swatch label="accent"   color={c.accent}      theme={theme} />
+            <Swatch label="accentAlt" color={c.accentAlt}  theme={theme} />
+            <Swatch label="border"   color={c.border}      theme={theme} />
+            <Swatch label="focus"    color={c.borderFocus} theme={theme} />
+            <Swatch label="selected" color={c.selectedBg}  theme={theme} />
+            <Swatch label="dim"      color={c.dim}         theme={theme} />
+            <Swatch label="success"  color={c.success}     theme={theme} />
+            <Swatch label="warning"  color={c.warning}     theme={theme} />
+            <Swatch label="error"    color={c.error}       theme={theme} />
+          </Box>
+        </StyleSection>
+
+        {/* Typography */}
+        <StyleSection title="TYPOGRAPHY" theme={theme}>
+          <Text bold color={c.fg}>Bold heading</Text>
+          <Text color={c.fg}>Regular body text — the quick brown fox jumps over the lazy dog.</Text>
+          <Text dim color={c.dim}>Dim helper text — use for secondary info.</Text>
+          <Text color={c.accent}>Accent label — highlights.</Text>
+          <Text color={c.fg} backgroundColor={c.selectedBg} bold>Highlighted / selected</Text>
+          <Box flexDirection="row" gap={2}>
+            <Text color={c.success}>✓ success</Text>
+            <Text color={c.warning}>⚠ warning</Text>
+            <Text color={c.error}>✕ error</Text>
+          </Box>
+        </StyleSection>
+
+        {/* Buttons — active style highlighted */}
+        <StyleSection title="BUTTONS  (★ = active theme style)" theme={theme}>
+          <Box flexDirection="column" gap={1}>
+            {allButtonStyles.map((bs) => {
+              const isActive = bs === theme.buttonStyle;
+              const normal = renderButton("Button", bs);
+              const label = `${bs.padEnd(8)} ${isActive ? "★" : " "}  `;
+              // primary (accent bg), secondary (fg outline-ish), disabled (dim)
+              return (
+                <Box key={bs} flexDirection="row" gap={1} alignItems="center">
+                  <Text dim={!isActive} bold={isActive} color={isActive ? c.accent : c.dim}>
+                    {label}
+                  </Text>
+                  <Text color={c.selected} backgroundColor={c.accent} bold>{normal}</Text>
+                  <Text color={c.fg} backgroundColor={c.border}>{normal}</Text>
+                  <Text color={c.fg}>{normal}</Text>
+                  <Text dim color={c.dim}>{normal}</Text>
+                </Box>
+              );
+            })}
+            <Box height={1} />
+            <Text dim color={c.dim}>
+              columns: primary · secondary · ghost · disabled
+            </Text>
+          </Box>
+        </StyleSection>
+
+        {/* Borders */}
+        <StyleSection title="BORDERS & BOXES  (★ = active)" theme={theme}>
+          <Box flexDirection="row" gap={1} flexWrap="wrap">
+            {allBorders.map(({ name, style }) => {
+              const isActive = style === theme.borderStyle;
+              return (
+                <Box
+                  key={name}
+                  flexDirection="column"
+                  borderStyle={style}
+                  borderColor={isActive ? c.borderFocus : c.border}
+                  paddingX={1}
+                  marginRight={1}
+                  marginBottom={1}
+                >
+                  <Text bold={isActive} color={isActive ? c.accent : c.fg}>
+                    {name}{isActive ? " ★" : ""}
+                  </Text>
+                </Box>
+              );
+            })}
+          </Box>
+        </StyleSection>
+
+        {/* Inputs */}
+        <StyleSection title="INPUTS & FIELDS" theme={theme}>
+          <Box flexDirection="column" gap={1}>
+            <Box flexDirection="row" gap={2}>
+              <Text dim color={c.dim}>Search </Text>
+              <Box borderStyle={theme.borderStyle} borderColor={c.border} paddingX={1}>
+                <Text color={c.fg}>/ search invoices…</Text>
+              </Box>
+            </Box>
+            <Box flexDirection="row" gap={2}>
+              <Text dim color={c.dim}>Filled </Text>
+              <Box borderStyle={theme.borderStyle} borderColor={c.borderFocus} paddingX={1}>
+                <Text color={c.fg}>Invoice #12345_</Text>
+              </Box>
+            </Box>
+            <Box flexDirection="row" gap={2}>
+              <Text dim color={c.dim}>Error  </Text>
+              <Box borderStyle={theme.borderStyle} borderColor={c.error} paddingX={1}>
+                <Text color={c.error}>field required</Text>
+              </Box>
+            </Box>
+            <Box flexDirection="row" gap={2}>
+              <Text color={c.accent}>[x]</Text><Text color={c.fg}> Enable grid</Text>
+              <Text color={c.dim}>[ ]</Text><Text color={c.dim}> Optional</Text>
+              <Text color={c.accent}>(●)</Text><Text color={c.fg}> Selected</Text>
+              <Text color={c.dim}>( )</Text><Text color={c.dim}> Unselected</Text>
+            </Box>
+          </Box>
+        </StyleSection>
+
+        {/* Cards */}
+        <StyleSection title="CARDS" theme={theme}>
+          <Box flexDirection="row" gap={1}>
+            <Box
+              flexDirection="column"
+              borderStyle={theme.borderStyle}
+              borderColor={c.border}
+              paddingX={1}
+              paddingTop={1}
+              width={26}
+            >
+              <Text bold color={c.fg}>Content card</Text>
+              <Text dim color={c.dim}>Lorem ipsum dolor sit amet.</Text>
+              <Box height={1} />
+              <Box flexDirection="row" gap={1}>
+                <Text dim color={c.dim}>status:</Text>
+                <Text color={c.accent}>active</Text>
+              </Box>
+            </Box>
+            <Box
+              flexDirection="column"
+              borderStyle={theme.borderStyle}
+              borderColor={c.borderFocus}
+              paddingX={1}
+              paddingTop={1}
+              width={30}
+            >
+              <Box flexDirection="row" justifyContent="space-between">
+                <Text bold color={c.fg}>Interactive</Text>
+                <Text color={c.accent}>●</Text>
+              </Box>
+              <Text dim color={c.dim}>Click effects, actions.</Text>
+              <Box height={1} />
+              <Box flexDirection="row" gap={1}>
+                <Text color={c.fg}>{renderButton("Cancel", theme.buttonStyle)}</Text>
+                <Text color={c.selected} backgroundColor={c.accent} bold>
+                  {renderButton("Confirm", theme.buttonStyle)}
+                </Text>
+              </Box>
+            </Box>
+            <Box
+              flexDirection="column"
+              borderStyle={theme.borderStyle}
+              borderColor={c.border}
+              paddingX={1}
+              paddingTop={1}
+              width={22}
+            >
+              <Text dim color={c.dim}>revenue</Text>
+              <Text bold color={c.fg}>$56,000</Text>
+              <Text color={c.success}>+12.8%</Text>
+            </Box>
+          </Box>
+        </StyleSection>
+
+        {/* Alerts */}
+        <StyleSection title="ALERTS" theme={theme}>
+          <Box flexDirection="column" gap={0}>
+            <Text color={c.success}>✓ Success — your changes have been saved.</Text>
+            <Text color={c.accent}>ⓘ Info — new updates available.</Text>
+            <Text color={c.warning}>⚠ Warning — this cannot be undone.</Text>
+            <Text color={c.error}>✕ Error — could not reach the server.</Text>
+          </Box>
+        </StyleSection>
+      </Box>
+    </ScrollView>
+  );
+}
+
+/* ─────────────────────────── App ─────────────────────────── */
+
+function App({ mode }: { mode: Mode }) {
   const { exit } = useApp();
   const { width, height } = useTerminal();
 
+  const [themeIdx, setThemeIdx] = useState(0);
+  const theme = THEMES[themeIdx]!;
+
   const [searchFilter, setSearchFilter] = useState("");
   const [searchMode, setSearchMode] = useState(false);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(["foundations", "components", "patterns"]));
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(
+    new Set(["foundations", "components", "patterns"])
+  );
   const [focusedId, setFocusedId] = useState("color");
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
-  const [treeWidth, setTreeWidth] = useState(25);
-  const [topHeight, setTopHeight] = useState(55); // % of right column height
+  const [treeWidth, setTreeWidth] = useState(30);
+  const [topHeight, setTopHeight] = useState(55);
   const [showHelp, setShowHelp] = useState(false);
-  const [activePane, setActivePane] = useState<"tree" | "top" | "bottom">("tree");
+  const [activePane, setActivePane] = useState<"themes" | "tree" | "top" | "bottom">("themes");
   const [hintMode, setHintMode] = useState(false);
   const [resizeMode, setResizeMode] = useState(false);
-  const [showFloating, setShowFloating] = useState(false);
 
-  const flatTree = useMemo(
-    () => flattenVisible(TREE_DATA, expandedIds),
-    [expandedIds]
-  );
-
+  const flatTree = useMemo(() => flattenVisible(TREE_DATA, expandedIds), [expandedIds]);
   const filteredTree = useMemo(() => {
     if (!searchFilter) return flatTree;
     const f = searchFilter.toLowerCase();
@@ -157,28 +682,26 @@ function App() {
     );
   }, [flatTree, searchFilter]);
 
-  const allNodes = useMemo(() => flattenVisible(TREE_DATA, new Set(["foundations", "components", "patterns"])), []);
-  const focusedNode = allNodes.find(({ node }) => node.id === focusedId)?.node;
+  const focusedNode = flatTree.find(({ node }) => node.id === focusedId)?.node;
 
   const navigateTree = useCallback((direction: "up" | "down" | "left" | "right") => {
     const idx = filteredTree.findIndex(({ node }) => node.id === focusedId);
     if (idx === -1) return;
-
     if (direction === "down") {
-      const next = filteredTree[(idx + 1) % filteredTree.length];
+      const next = filteredTree[(idx + 1) % filteredTree.length]!;
       setFocusedId(next.node.id);
     } else if (direction === "up") {
-      const next = filteredTree[(idx - 1 + filteredTree.length) % filteredTree.length];
+      const next = filteredTree[(idx - 1 + filteredTree.length) % filteredTree.length]!;
       setFocusedId(next.node.id);
     } else if (direction === "left") {
       if (expandedIds.has(focusedId)) {
-        expandedIds.delete(focusedId);
-        setExpandedIds(new Set(expandedIds));
+        const next = new Set(expandedIds);
+        next.delete(focusedId);
+        setExpandedIds(next);
       }
     } else if (direction === "right") {
       if (filteredTree.find(({ node }) => node.id === focusedId)?.node.children?.length) {
-        expandedIds.add(focusedId);
-        setExpandedIds(new Set(expandedIds));
+        setExpandedIds(new Set([...expandedIds, focusedId]));
       }
     }
   }, [focusedId, expandedIds, filteredTree]);
@@ -189,323 +712,138 @@ function App() {
     setActiveTab(tabs[(i + dir + tabs.length) % tabs.length]!);
   }, [activeTab]);
 
+  const paneCycle: Array<"themes" | "tree" | "top" | "bottom"> =
+    mode === "style" ? ["themes"] : ["themes", "tree", "top", "bottom"];
+
   useInput((e) => {
-    if (showFloating) {
-      if (e.key === "escape" || e.key === "f") {
-        setShowFloating(false);
-        return;
-      }
-      // Still allow 1-4 jumps to tree nodes while floating open
-      const shortcuts = ["color", "typography", "spacing", "radius"];
-      const digitMap: Record<string, number> = { "1":0, "2":1, "3":2, "4":3 };
-      if (e.char && digitMap[e.char] !== undefined) {
-        const id = shortcuts[digitMap[e.char]!];
-        if (id) { setFocusedId(id); setShowFloating(false); }
-        return;
-      }
-      return;
-    }
     if (showHelp) {
-      if (e.key === "?" || e.key === "escape" || e.key === "q") {
-        setShowHelp(false);
-      }
+      if (e.key === "?" || e.key === "escape" || e.key === "q") setShowHelp(false);
       return;
     }
-
     if (searchMode) {
-      if (e.key === "escape" || e.key === "return") {
-        setSearchMode(false);
-      } else if (e.key === "backspace") {
-        setSearchFilter(s => s.slice(0, -1));
-      } else if (e.char && e.char.length === 1 && !e.ctrl && !e.meta) {
-        setSearchFilter(s => s + e.char);
-      }
+      if (e.key === "escape" || e.key === "return") setSearchMode(false);
+      else if (e.key === "backspace") setSearchFilter(s => s.slice(0, -1));
+      else if (e.char && e.char.length === 1 && !e.ctrl && !e.meta) setSearchFilter(s => s + e.char);
       return;
     }
-
-    // Resize mode — arrows grow/shrink the focused pane itself
     if (resizeMode) {
-      if (e.key === "escape" || e.key === "capslock" || e.key === "r") {
-        setResizeMode(false);
-        return;
+      if (e.key === "escape" || e.key === "r") { setResizeMode(false); return; }
+      if (activePane === "tree" || activePane === "top" || activePane === "bottom") {
+        if (e.key === "left" || e.key === "h") setTreeWidth(w => Math.max(18, w - 2));
+        if (e.key === "right" || e.key === "l") setTreeWidth(w => Math.min(70, w + 2));
       }
-      if (activePane === "tree") {
-        // Tree is left pane. Right = grow rightward. Left = shrink.
-        if (e.key === "left" || e.key === "h") setTreeWidth(w => Math.max(15, w - 3));
-        if (e.key === "right" || e.key === "l") setTreeWidth(w => Math.min(75, w + 3));
-      } else if (activePane === "top") {
-        // Top-right: left = grow leftward (tree shrinks). Down = grow downward.
-        if (e.key === "left" || e.key === "h") setTreeWidth(w => Math.max(15, w - 3));
-        if (e.key === "right" || e.key === "l") setTreeWidth(w => Math.min(75, w + 3));
-        if (e.key === "up" || e.key === "k") setTopHeight(h => Math.max(20, h - 5));
-        if (e.key === "down" || e.key === "j") setTopHeight(h => Math.min(80, h + 5));
-      } else if (activePane === "bottom") {
-        // Bottom-right: left = grow leftward (tree shrinks). Up = grow upward.
-        if (e.key === "left" || e.key === "h") setTreeWidth(w => Math.max(15, w - 3));
-        if (e.key === "right" || e.key === "l") setTreeWidth(w => Math.min(75, w + 3));
+      if (activePane === "top" || activePane === "bottom") {
         if (e.key === "up" || e.key === "k") setTopHeight(h => Math.max(20, h - 5));
         if (e.key === "down" || e.key === "j") setTopHeight(h => Math.min(80, h + 5));
       }
       return;
     }
 
-    // Global keys
     if (e.ctrl && e.key === "c") { exit(); return; }
     if (e.key === "q") { exit(); return; }
     if (e.key === "?") { setShowHelp(true); return; }
-    if (e.key === "/") { setSearchMode(true); return; }
-    if (e.key === "f" || (e.ctrl && e.key === "p")) {
-      setShowFloating(v => !v);
-      return;
-    }
+    if (e.key === "/" && mode === "showcase") { setSearchMode(true); return; }
+    if (e.key === "r" && mode === "showcase") { setResizeMode(true); return; }
 
-    // Resize mode toggle — CapsLock (if terminal sends it) or `r`
-    if (e.key === "capslock" || e.key === "r") {
-      setResizeMode(true);
-      return;
-    }
+    if (e.ctrl && (e.key === "space" || e.char === " ")) { setHintMode(h => !h); return; }
 
-    // Hint mode (Ctrl+Space)
-    if (e.ctrl && (e.key === "space" || e.char === " ")) {
-      setHintMode(h => !h);
-      return;
-    }
-
-    // Pane cycle: Tab → tree → top → bottom → tree
     if (e.key === "tab") {
-      setActivePane(p => p === "tree" ? "top" : p === "top" ? "bottom" : "tree");
+      const i = paneCycle.indexOf(activePane);
+      const next = paneCycle[(i + 1) % paneCycle.length]!;
+      setActivePane(next);
       setHintMode(false);
       return;
     }
 
-    // Number jumps
-    const digitMap: Record<string, number> = { "1":0, "2":1, "3":2, "4":3, "5":4, "6":5, "7":6, "8":7, "9":8 };
-    if (e.char && digitMap[e.char] !== undefined) {
-      const n = digitMap[e.char]!;
-      if (hintMode && activePane === "tree" && filteredTree[n]) {
-        setFocusedId(filteredTree[n].node.id);
-        setHintMode(false);
-        return;
-      }
-      const tabs: TabKey[] = ["overview", "properties", "code", "settings"];
-      if (n < tabs.length) {
-        setActiveTab(tabs[n]!);
-        setActivePane("top");
-        setHintMode(false);
-        return;
-      }
+    // Theme pane navigation
+    if (activePane === "themes") {
+      if (e.key === "j" || e.key === "down") setThemeIdx(i => (i + 1) % THEMES.length);
+      else if (e.key === "k" || e.key === "up") setThemeIdx(i => (i - 1 + THEMES.length) % THEMES.length);
+      return;
     }
 
-    // Pane-specific navigation
-    if (activePane === "tree") {
-      if (e.key === "j" || e.key === "down") navigateTree("down");
-      else if (e.key === "k" || e.key === "up") navigateTree("up");
-      else if (e.key === "h" || e.key === "left") navigateTree("left");
-      else if (e.key === "l" || e.key === "right") navigateTree("right");
-    } else if (activePane === "top") {
-      if (e.key === "h" || e.key === "left") cycleTab(-1);
-      else if (e.key === "l" || e.key === "right") cycleTab(1);
+    // Number jumps (showcase only)
+    if (mode === "showcase") {
+      const digitMap: Record<string, number> = { "1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7,"9":8 };
+      if (e.char && digitMap[e.char] !== undefined) {
+        const n = digitMap[e.char]!;
+        if (hintMode && activePane === "tree" && filteredTree[n]) {
+          setFocusedId(filteredTree[n]!.node.id);
+          setHintMode(false);
+          return;
+        }
+        const tabs: TabKey[] = ["overview", "properties", "code", "settings"];
+        if (n < tabs.length) {
+          setActiveTab(tabs[n]!);
+          setActivePane("top");
+          setHintMode(false);
+          return;
+        }
+      }
+
+      if (activePane === "tree") {
+        if (e.key === "j" || e.key === "down") navigateTree("down");
+        else if (e.key === "k" || e.key === "up") navigateTree("up");
+        else if (e.key === "h" || e.key === "left") navigateTree("left");
+        else if (e.key === "l" || e.key === "right") navigateTree("right");
+      } else if (activePane === "top") {
+        if (e.key === "h" || e.key === "left") cycleTab(-1);
+        else if (e.key === "l" || e.key === "right") cycleTab(1);
+      }
     }
   });
 
-  const treePixels = Math.floor((width * treeWidth) / 100);
-
   return (
-    <Box flexDirection="column" width={width} height={height}>
+    <Box flexDirection="column" width={width} height={height} backgroundColor={theme.colors.bg}>
       {/* Header */}
-      <Box borderStyle="round" borderColor={GREYSCALE.border} paddingX={1}>
-        <Text bold color={GREYSCALE.fg}>STORM</Text>
-        <Text dim color={GREYSCALE.dim}>  ·  Feature Explorer  ·  </Text>
-        <Text color={GREYSCALE.fg}>{focusedNode?.label}</Text>
+      <Box
+        borderStyle={theme.borderStyle}
+        borderColor={theme.colors.border}
+        paddingX={1}
+      >
+        <Text bold color={theme.colors.accent}>STORM</Text>
+        <Text dim color={theme.colors.dim}>  ·  {mode === "style" ? "Style Guide" : "Feature Explorer"}  ·  </Text>
+        <Text color={theme.colors.fg}>{theme.name}</Text>
+        <Text dim color={theme.colors.dim}>  ({theme.id})</Text>
       </Box>
 
-      {/* Main Content */}
+      {/* Main */}
       <Box flex={1} flexDirection="row">
-        {/* Tree Pane */}
-        <Box
-          width={treePixels}
-          flexDirection="column"
-          borderStyle="round"
-          borderColor={activePane === "tree" ? GREYSCALE.borderFocused : GREYSCALE.border}
-          paddingX={1}
-          paddingTop={1}
-        >
-          {searchMode && (
-            <Box
-              flexDirection="row"
-              marginBottom={1}
-              borderStyle="round"
-              borderColor={GREYSCALE.borderFocused}
-              paddingX={1}
-            >
-              <Text dim>/ </Text>
-              <Text color={GREYSCALE.fg}>{searchFilter}_</Text>
-            </Box>
-          )}
-          <Text bold dim color={GREYSCALE.dim}>ITEMS</Text>
-          <Text dim color={GREYSCALE.dim}>{filteredTree.length} total</Text>
-          <Box height={1} />
-          <ScrollView flex={1}>
-            {filteredTree.length === 0 ? (
-              <Text color={GREYSCALE.dim}>no matches</Text>
-            ) : (
-              filteredTree.map(({ node, level }, i) => (
-                <TreeRow
-                  key={node.id}
-                  node={node}
-                  level={level}
-                  isFocused={node.id === focusedId}
-                  hintKey={hintMode && activePane === "tree" && i < 9 ? String(i + 1) : undefined}
-                />
-              ))
-            )}
-          </ScrollView>
-        </Box>
-
-        {/* Right column: top + bottom stacked */}
-        <Box flexDirection="column" flex={1}>
-          {/* Top-right pane */}
-          <Box
-            flexDirection="column"
-            flexGrow={topHeight}
-            flexShrink={1}
-            flexBasis={0}
-            borderStyle="round"
-            borderColor={activePane === "top" ? GREYSCALE.borderFocused : GREYSCALE.border}
-            paddingX={1}
-            paddingTop={1}
-          >
-            <Box flexDirection="row" gap={1}>
-              {(["overview", "properties", "code", "settings"] as TabKey[]).map((k, i) => {
-                const labels = { overview: "Overview", properties: "Properties", code: "Code", settings: "Settings" };
-                const isActive = activeTab === k;
-                const showHint = hintMode && activePane === "top";
-                return (
-                  <Text
-                    key={k}
-                    bold={isActive || showHint}
-                    dim={!isActive && !showHint}
-                    color={showHint ? GREYSCALE.borderFocused : GREYSCALE.fg}
-                    backgroundColor={isActive ? GREYSCALE.selectedBg : (showHint ? GREYSCALE.selectedBg : undefined)}
-                  >
-                    {showHint ? ` [${i + 1}] ${labels[k]} ` : ` ${i + 1} ${labels[k]} `}
-                  </Text>
-                );
-              })}
-            </Box>
-
-            <Box flex={1} marginTop={1}>
-              {!focusedNode ? (
-                <Text color={GREYSCALE.dim}>select an item</Text>
-              ) : activeTab === "overview" ? (
-                <Box flexDirection="column" gap={1}>
-                  <Text bold color={GREYSCALE.fg}>{focusedNode.label}</Text>
-                  {focusedNode.data && Object.entries(focusedNode.data).map(([k, v]) => (
-                    <Box key={k} flexDirection="row" gap={1}>
-                      <Text dim>{k}:</Text>
-                      <Text color={GREYSCALE.fg}>
-                        {typeof v === "string" ? v : Array.isArray(v) ? v.join(", ") : JSON.stringify(v)}
-                      </Text>
-                    </Box>
-                  ))}
-                </Box>
-              ) : activeTab === "properties" ? (
-                <Box flexDirection="column">
-                  <Text dim>id</Text>
-                  <Text color={GREYSCALE.fg}>{focusedNode.id}</Text>
-                  <Box height={1} />
-                  <Text dim>level</Text>
-                  <Text color={GREYSCALE.fg}>{flatTree.find(({ node }) => node.id === focusedId)?.level}</Text>
-                  <Box height={1} />
-                  <Text dim>children</Text>
-                  <Text color={GREYSCALE.fg}>{focusedNode.children?.length || 0}</Text>
-                </Box>
-              ) : activeTab === "code" ? (
-                <Box borderStyle="round" borderColor={GREYSCALE.border} padding={1}>
-                  <SyntaxHighlight language="typescript" code={CODE_SAMPLE} />
-                </Box>
-              ) : (
-                <Box flexDirection="column" gap={1}>
-                  <Text bold color={GREYSCALE.fg}>Settings</Text>
-                  <Text dim>Tree width: {treeWidth}%</Text>
-                  <Text dim>Filter: {searchFilter || "(none)"}</Text>
-                  <Text dim>Expanded nodes: {expandedIds.size}</Text>
-                </Box>
-              )}
-            </Box>
+        <ThemeSidebar
+          themes={THEMES}
+          activeId={theme.id}
+          onPick={(id) => {
+            const i = THEMES.findIndex(t => t.id === id);
+            if (i !== -1) setThemeIdx(i);
+          }}
+          focused={activePane === "themes"}
+          focusIdx={themeIdx}
+          theme={theme}
+        />
+        {mode === "style" ? (
+          <Box flex={1}>
+            <StyleGuideView theme={theme} />
           </Box>
-
-          {/* Bottom-right pane */}
-          <Box
-            flexDirection="column"
-            flexGrow={100 - topHeight}
-            flexShrink={1}
-            flexBasis={0}
-            borderStyle="round"
-            borderColor={activePane === "bottom" ? GREYSCALE.borderFocused : GREYSCALE.border}
-            paddingX={1}
-          >
-            <Text bold dim color={GREYSCALE.dim}>STATUS / PREVIEW</Text>
-            <Box flexDirection="row" gap={2}>
-              <Box flexDirection="column" flex={1}>
-                <Box flexDirection="row" gap={1}>
-                  <Text dim>pane:</Text>
-                  <Text color={GREYSCALE.fg}>{activePane}</Text>
-                </Box>
-                <Box flexDirection="row" gap={1}>
-                  <Text dim>tab:</Text>
-                  <Text color={GREYSCALE.fg}>{activeTab}</Text>
-                </Box>
-                <Box flexDirection="row" gap={1}>
-                  <Text dim>hints:</Text>
-                  <Text color={GREYSCALE.fg}>{hintMode ? "on" : "off"}</Text>
-                </Box>
-                <Box flexDirection="row" gap={1}>
-                  <Text dim>resize:</Text>
-                  <Text color={resizeMode ? GREYSCALE.borderFocused : GREYSCALE.fg} bold={resizeMode}>
-                    {resizeMode ? "ON" : "off"}
-                  </Text>
-                </Box>
-              </Box>
-              <Box flexDirection="column" flex={1}>
-                <Box flexDirection="row" gap={1}>
-                  <Text dim>id:</Text>
-                  <Text color={GREYSCALE.fg}>{focusedNode?.id ?? "—"}</Text>
-                </Box>
-                <Box flexDirection="row" gap={1}>
-                  <Text dim>label:</Text>
-                  <Text color={GREYSCALE.fg}>{focusedNode?.label ?? "—"}</Text>
-                </Box>
-                <Box flexDirection="row" gap={1}>
-                  <Text dim>filter:</Text>
-                  <Text color={GREYSCALE.fg}>{searchFilter || "(none)"}</Text>
-                </Box>
-                <Box flexDirection="row" gap={1}>
-                  <Text dim>matches:</Text>
-                  <Text color={GREYSCALE.fg}>{filteredTree.length}</Text>
-                </Box>
-              </Box>
-              <Box flexDirection="column" flex={1}>
-                <Box flexDirection="row" gap={1}>
-                  <Text dim>tree:</Text>
-                  <Text color={GREYSCALE.fg}>{treeWidth}%</Text>
-                </Box>
-                <Box flexDirection="row" gap={1}>
-                  <Text dim>top:</Text>
-                  <Text color={GREYSCALE.fg}>{topHeight}%</Text>
-                </Box>
-                <Box flexDirection="row" gap={1}>
-                  <Text dim>expanded:</Text>
-                  <Text color={GREYSCALE.fg}>{expandedIds.size}/{TREE_DATA.length}</Text>
-                </Box>
-                <Box flexDirection="row" gap={1}>
-                  <Text dim>term:</Text>
-                  <Text color={GREYSCALE.fg}>{width}×{height}</Text>
-                </Box>
-              </Box>
-            </Box>
-          </Box>
-        </Box>
+        ) : (
+          <ShowcaseView
+            theme={theme}
+            activePane={activePane}
+            hintMode={hintMode}
+            resizeMode={resizeMode}
+            treeWidth={treeWidth}
+            topHeight={topHeight}
+            searchFilter={searchFilter}
+            searchMode={searchMode}
+            expandedIds={expandedIds}
+            focusedId={focusedId}
+            activeTab={activeTab}
+            setFocusedId={setFocusedId}
+            setActiveTab={setActiveTab}
+            filteredTree={filteredTree}
+            focusedNode={focusedNode}
+            flatTree={flatTree}
+          />
+        )}
       </Box>
 
       {/* Footer */}
@@ -513,84 +851,40 @@ function App() {
         bindings={resizeMode ? [
           { key: "arrows", label: `resize ${activePane}` },
           { key: "Esc/r", label: "exit resize" },
+        ] : mode === "style" ? [
+          { key: "Tab", label: `pane (${activePane})` },
+          { key: "j/k", label: "theme" },
+          { key: "?", label: "help" },
+          { key: "q", label: "quit" },
         ] : [
           { key: "Tab", label: `pane (${activePane})` },
-          { key: "r", label: "resize mode" },
-          { key: "C-Spc", label: hintMode ? "hints ON" : "hints" },
-          { key: "j/k", label: activePane === "tree" ? "nav" : "—" },
+          { key: "j/k", label: activePane === "themes" ? "theme" : activePane === "tree" ? "nav" : "—" },
           { key: "h/l", label: activePane === "tree" ? "fold" : activePane === "top" ? "tab" : "—" },
-          { key: "f", label: "float panel" },
+          { key: "r", label: "resize" },
           { key: "/", label: "search" },
           { key: "?", label: "help" },
           { key: "q", label: "quit" },
         ]}
       />
 
-      {/* Floating pane — absolute-positioned overlay */}
-      {showFloating && (
-        <Box
-          position="absolute"
-          top={Math.max(2, Math.floor(height / 2) - 10)}
-          left={Math.max(2, Math.floor(width / 2) - 22)}
-          width={44}
-          flexDirection="column"
-          borderStyle="double"
-          borderColor={GREYSCALE.borderFocused}
-          paddingX={2}
-          paddingY={1}
-          backgroundColor={GREYSCALE.bg}
-        >
-          <Text bold color={GREYSCALE.borderFocused}>✦ Quick Panel</Text>
-          <Box height={1} />
-          <Text dim>Jump to common nodes:</Text>
-          <Box flexDirection="column" marginTop={1}>
-            <Text><Kbd>1</Kbd>  Color System</Text>
-            <Text><Kbd>2</Kbd>  Typography</Text>
-            <Text><Kbd>3</Kbd>  Spacing Scale</Text>
-            <Text><Kbd>4</Kbd>  Border Radius</Text>
-          </Box>
-          <Box height={1} />
-          <Text bold color={GREYSCALE.fg}>Current</Text>
-          <Box flexDirection="row" gap={1}>
-            <Text dim>selection:</Text>
-            <Text color={GREYSCALE.fg}>{focusedNode?.label ?? "—"}</Text>
-          </Box>
-          <Box flexDirection="row" gap={1}>
-            <Text dim>pane:</Text>
-            <Text color={GREYSCALE.fg}>{activePane}</Text>
-          </Box>
-          <Box height={1} />
-          <Text dim>Press <Kbd>f</Kbd> or <Kbd>Esc</Kbd> to close</Text>
-        </Box>
-      )}
-
-      {/* Help Modal */}
       {showHelp && (
-        <Modal
-          visible={true}
-          onClose={() => setShowHelp(false)}
-          title="Help"
-          size="md"
-        >
+        <Modal visible={true} onClose={() => setShowHelp(false)} title="Help" size="md">
           <Box flexDirection="column" gap={1} padding={1}>
-            <Text bold color={GREYSCALE.fg}>Panes</Text>
-            <Text><Kbd>Tab</Kbd>  — cycle: tree → top-right → bottom-right</Text>
-            <Text><Kbd>Ctrl+Space</Kbd>  — toggle shortcut hints</Text>
+            <Text bold color={theme.colors.fg}>Panes</Text>
+            <Text><Kbd>Tab</Kbd>  — cycle panes</Text>
+            <Text><Kbd>j</Kbd>/<Kbd>k</Kbd>  — nav (theme list / tree)</Text>
+            {mode === "showcase" && (
+              <>
+                <Text><Kbd>h</Kbd>/<Kbd>l</Kbd>  — fold / switch tab</Text>
+                <Text><Kbd>/</Kbd>  — search</Text>
+                <Text><Kbd>r</Kbd>  — resize mode (arrows; Esc exits)</Text>
+              </>
+            )}
+            <Text><Kbd>q</Kbd>  — quit  ·  <Kbd>?</Kbd>  — help</Text>
             <Box height={1} />
-            <Text bold color={GREYSCALE.fg}>Tree focused</Text>
-            <Text><Kbd>j</Kbd>/<Kbd>k</Kbd> or <Kbd>↓</Kbd>/<Kbd>↑</Kbd>  — nav items</Text>
-            <Text><Kbd>h</Kbd>/<Kbd>l</Kbd> or <Kbd>←</Kbd>/<Kbd>→</Kbd>  — fold/unfold</Text>
-            <Box height={1} />
-            <Text bold color={GREYSCALE.fg}>Top-right focused</Text>
-            <Text><Kbd>h</Kbd>/<Kbd>l</Kbd> or <Kbd>←</Kbd>/<Kbd>→</Kbd>  — prev/next tab</Text>
-            <Text><Kbd>1</Kbd>-<Kbd>4</Kbd>  — jump to tab</Text>
-            <Box height={1} />
-            <Text bold color={GREYSCALE.fg}>Resize mode</Text>
-            <Text><Kbd>r</Kbd> or <Kbd>CapsLock</Kbd>  — enter resize mode</Text>
-            <Text>  arrows resize focused pane; <Kbd>Esc</Kbd> exits</Text>
-            <Box height={1} />
-            <Text bold color={GREYSCALE.fg}>Other</Text>
-            <Text><Kbd>/</Kbd>  — search  ·  <Kbd>?</Kbd>  — help  ·  <Kbd>q</Kbd>  — quit</Text>
+            <Text dim color={theme.colors.dim}>
+              Launch style guide with: <Text color={theme.colors.accent}>ui tui style</Text>
+            </Text>
           </Box>
         </Modal>
       )}
@@ -598,4 +892,5 @@ function App() {
   );
 }
 
-render(<App />).waitUntilExit();
+const mode = parseMode();
+render(<App mode={mode} />).waitUntilExit();

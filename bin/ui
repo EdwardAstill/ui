@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # ui — dispatcher for the UI showcase project.
-#   ui web            run the web (React) theme showcase
-#   ui tui            pick a TUI interactively
-#   ui tui storm      run the Storm (TypeScript) TUI
-#   ui tui textual    run the Textual (Python) TUI
+#   ui web              run the web showcase (React themes)
+#   ui web style        run the web style guide (same themes, style-guide view)
+#   ui tui              pick a TUI interactively (showcase)
+#   ui tui storm        run the storm (TypeScript) TUI showcase
+#   ui tui style        run the storm style guide
+#   ui tui storm style  same as `ui tui style`
 
 set -euo pipefail
 
@@ -16,30 +18,39 @@ usage() {
 ui — theme showcase
 
 Usage:
-  ui web                  start the web showcase (http://localhost:3000)
+  ui web                  start the web showcase          (http://localhost:3000)
+  ui web style            start the web style guide       (http://localhost:3000/?mode=style)
   ui tui                  pick a TUI showcase
-  ui tui storm            run the Storm (TypeScript, React) TUI
-  ui tui textual          run the Textual (Python) TUI
+  ui tui storm            run the storm (TypeScript) TUI showcase
+  ui tui style            run the storm TUI style guide
+  ui tui storm style      alias for 'ui tui style'
   ui help                 show this message
 EOF
 }
 
 run_web() {
+  local mode="${1:-showcase}"
   cd "$ROOT"
   if [ ! -d node_modules ]; then
     echo "→ installing web deps with bun"
     bun install
   fi
+  if [ "$mode" = "style" ]; then
+    echo "→ style guide: http://localhost:3000/?mode=style"
+  else
+    echo "→ showcase:    http://localhost:3000/"
+  fi
   exec bun --hot server.ts
 }
 
 run_storm() {
+  local mode="${1:-showcase}"
   cd "$ROOT/tuis/storm"
   if [ ! -d node_modules ]; then
     echo "→ installing storm deps with bun"
     bun install
   fi
-  exec bun run app.tsx
+  exec bun run app.tsx --mode="$mode"
 }
 
 run_textual() {
@@ -54,7 +65,7 @@ pick_tui() {
   printf "> "
   read -r choice
   case "$choice" in
-    1|storm)    run_storm ;;
+    1|storm)    run_storm showcase ;;
     2|textual)  run_textual ;;
     *) echo "unknown choice: $choice" >&2; exit 1 ;;
   esac
@@ -62,14 +73,29 @@ pick_tui() {
 
 cmd="${1:-help}"
 case "$cmd" in
-  web)  run_web ;;
+  web)
+    sub="${2:-}"
+    case "$sub" in
+      "")       run_web showcase ;;
+      style)    run_web style ;;
+      *) echo "unknown web arg: $sub (try: style)" >&2; exit 1 ;;
+    esac
+    ;;
   tui)
     sub="${2:-}"
     case "$sub" in
       "")       pick_tui ;;
-      storm)    run_storm ;;
+      storm)
+        sub2="${3:-}"
+        case "$sub2" in
+          "")       run_storm showcase ;;
+          style)    run_storm style ;;
+          *) echo "unknown storm arg: $sub2 (try: style)" >&2; exit 1 ;;
+        esac
+        ;;
+      style)    run_storm style ;;
       textual)  run_textual ;;
-      *) echo "unknown tui: $sub (try: storm | textual)" >&2; exit 1 ;;
+      *) echo "unknown tui: $sub (try: storm | style | textual)" >&2; exit 1 ;;
     esac
     ;;
   help|-h|--help) usage ;;
