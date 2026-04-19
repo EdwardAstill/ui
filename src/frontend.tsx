@@ -23,7 +23,9 @@ import { ModernRetroTheme } from "./themes/ModernRetro";
 import { HermesTheme } from "./themes/Hermes";
 import { EngProTheme } from "./themes/EngPro";
 import { DockTheme } from "./themes/Dock";
+import { ClaudePackTheme } from "./themes/ClaudePack";
 import type { ThemeDefinition, LayoutType } from "./themes/types";
+import { StyleGuide, styleGuideCSS } from "./components/StyleGuide";
 
 const themes: ThemeDefinition[] = [
   TerminalTheme,
@@ -48,6 +50,7 @@ const themes: ThemeDefinition[] = [
   HermesTheme,
   EngProTheme,
   DockTheme,
+  ClaudePackTheme,
 ];
 
 const globalBaseStyles = `
@@ -153,6 +156,16 @@ const globalBaseStyles = `
     background: var(--bg);
   }
 
+  /* Style guide mode: force scrollable + zero outer padding
+     (the StyleGuide component provides its own padding) so themes
+     that hide overflow or remove padding on the main-panel still render. */
+  .main-panel-style,
+  [data-theme] .main-panel-style {
+    padding: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
   @media (max-width: 600px) {
     .sidebar { width: 56px; min-width: 56px; }
     .sidebar-item span:last-child { display: none; }
@@ -160,10 +173,20 @@ const globalBaseStyles = `
   }
 `;
 
+type ViewMode = "showcase" | "style";
+
+function readInitialMode(): ViewMode {
+  if (typeof window === "undefined") return "showcase";
+  const params = new URLSearchParams(window.location.search);
+  const m = params.get("mode");
+  return m === "style" ? "style" : "showcase";
+}
+
 function App() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [activePalette, setActivePalette] = useState<string>("Default");
   const [activeLayout, setActiveLayout] = useState<LayoutType>("dashboard");
+  const [viewMode, setViewMode] = useState<ViewMode>(readInitialMode());
   const stylesInjected = useRef(false);
 
   const activeTheme = themes[activeIndex];
@@ -172,6 +195,14 @@ function App() {
     setActivePalette("Default");
     setActiveLayout(activeTheme.defaultLayout || "dashboard");
   }, [activeIndex, activeTheme]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (viewMode === "style") url.searchParams.set("mode", "style");
+    else url.searchParams.delete("mode");
+    window.history.replaceState(null, "", url.toString());
+  }, [viewMode]);
 
   useEffect(() => {
     // Inject styles once on mount — one <style> per theme to avoid
@@ -191,10 +222,10 @@ function App() {
       });
     });
 
-    // 1. Global style element: @imports + base styles
+    // 1. Global style element: @imports + base styles + style guide CSS
     const globalEl = document.createElement("style");
     globalEl.id = "theme-styles-global";
-    globalEl.textContent = importLines.join("\n") + "\n" + globalBaseStyles;
+    globalEl.textContent = importLines.join("\n") + "\n" + globalBaseStyles + "\n" + styleGuideCSS;
     document.head.appendChild(globalEl);
 
     // 2. One <style> per theme (no @import lines — already hoisted)
@@ -211,9 +242,9 @@ function App() {
     });
   }, []);
 
-  const currentColors = activePalette === "Default" 
-    ? activeTheme.colors 
-    : (activeTheme.palettes?.[activePalette] || activeTheme.colors);
+  const currentColors = (activePalette === "Default"
+    ? activeTheme.colors
+    : (activeTheme.palettes?.[activePalette] || activeTheme.colors))!;
 
   const cssVariables = Object.fromEntries(
     Object.entries(currentColors).map(([k, v]) => [
@@ -228,8 +259,31 @@ function App() {
         <div className="sidebar-header">
           <h1>UI Styles</h1>
           <p>{activeTheme.description || "Click to transform"}</p>
+          <div style={{ display: "flex", gap: 4, marginTop: 12 }}>
+            {(["showcase", "style"] as ViewMode[]).map(m => (
+              <button
+                key={m}
+                onClick={() => setViewMode(m)}
+                style={{
+                  flex: 1,
+                  padding: "6px 8px",
+                  fontSize: 10,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  background: viewMode === m ? "var(--accent)" : "var(--input-bg)",
+                  color: viewMode === m ? "#fff" : "var(--text)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                {m === "showcase" ? "Showcase" : "Style guide"}
+              </button>
+            ))}
+          </div>
         </div>
-        
+
         <nav className="sidebar-nav">
           {themes.map((theme, i) => (
             <button
@@ -258,32 +312,38 @@ function App() {
             </select>
           </div>
 
-          <div>
-            <label style={{ display: "block", fontSize: "10px", fontWeight: "bold", color: "var(--text-muted)", marginBottom: "8px", textTransform: "uppercase" }}>Layout</label>
-            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-              {(["dashboard", "media", "document", "compact", "landing"] as LayoutType[]).map(l => (
-                <button 
-                  key={l}
-                  onClick={() => setActiveLayout(l)}
-                  style={{ 
-                    padding: "4px 8px", 
-                    fontSize: "10px", 
-                    background: activeLayout === l ? "var(--accent)" : "var(--input-bg)", 
-                    color: activeLayout === l ? "#fff" : "var(--text)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "4px",
-                    cursor: "pointer"
-                  }}
-                >
-                  {l}
-                </button>
-              ))}
+          {viewMode === "showcase" && (
+            <div>
+              <label style={{ display: "block", fontSize: "10px", fontWeight: "bold", color: "var(--text-muted)", marginBottom: "8px", textTransform: "uppercase" }}>Layout</label>
+              <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                {(["dashboard", "media", "document", "compact", "landing"] as LayoutType[]).map(l => (
+                  <button
+                    key={l}
+                    onClick={() => setActiveLayout(l)}
+                    style={{
+                      padding: "4px 8px",
+                      fontSize: "10px",
+                      background: activeLayout === l ? "var(--accent)" : "var(--input-bg)",
+                      color: activeLayout === l ? "#fff" : "var(--text)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "4px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </aside>
-      <main className="main-panel">
-        <activeTheme.Showcase layout={activeLayout} colors={currentColors} />
+      <main className={`main-panel ${viewMode === "style" ? "main-panel-style" : ""}`}>
+        {viewMode === "style" ? (
+          <StyleGuide theme={activeTheme} colors={currentColors} />
+        ) : (
+          <activeTheme.Showcase layout={activeLayout} colors={currentColors} />
+        )}
       </main>
     </div>
   );
