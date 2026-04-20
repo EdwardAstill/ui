@@ -1,0 +1,13 @@
+{
+  "name": "ui-terminal",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@orchetron/storm": "^0.2.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^6.0.3"
+  }
+}
