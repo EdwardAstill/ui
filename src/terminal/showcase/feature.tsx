@@ -8,7 +8,7 @@
  * For the token reference / component catalog, see `../style/app.tsx`.
  */
 
-import { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   render,
   Box,
@@ -22,7 +22,7 @@ import {
   useApp,
   useTerminal,
 } from "@orchetron/storm";
-import { THEMES, renderButton, type TuiTheme } from "../themes";
+import { THEMES, renderButton, type TuiTheme, type TuiPalette, type BorderStyleName } from "../themes";
 
 let chosenCode = 0;
 
@@ -43,6 +43,9 @@ const TREE_DATA: TreeNode[] = [
       { id: "typography", label: "Typography", data: { desc: "Body + mono" } },
       { id: "spacing", label: "Spacing Scale", data: { desc: "1ch base" } },
       { id: "radius", label: "Border Style", data: { desc: "Varies per theme" } },
+      { id: "pane-borders", label: "Pane Borders", data: { desc: "All border approaches" } },
+      { id: "pane-spacing", label: "Panel Spacing", data: { desc: "Gap between panes" } },
+      { id: "pane-cursor", label: "Cursor Style", data: { desc: "Selection indicator glyph" } },
     ],
   },
   {
@@ -127,6 +130,197 @@ function ThemeSidebar({
   );
 }
 
+const BORDER_DEMOS: Array<{
+  id: string;
+  label: string;
+  desc: string;
+  borderStyle?: BorderStyleName;
+  render: (c: TuiPalette, theme: TuiTheme) => React.ReactNode;
+}> = [
+  {
+    id: "strip",
+    label: "Strip (Pyseas)",
+    desc: "Colored left-edge strip, no box border",
+    render: (c) => (
+      <Box flexDirection="row" height={5}>
+        <Box width={1} backgroundColor={c.borderFocus} />
+        <Box flex={1} flexDirection="column" paddingX={1}>
+          <Text bold color={c.fg}>Panel</Text>
+          <Text dim color={c.dim}>content here</Text>
+        </Box>
+      </Box>
+    ),
+  },
+  {
+    id: "hline",
+    label: "HLine (Pyseas)",
+    desc: "Full-width background strip separator",
+    render: (c) => (
+      <Box flexDirection="column">
+        <Box flexDirection="column" paddingX={1} paddingBottom={1}>
+          <Text dim color={c.dim}>above</Text>
+        </Box>
+        <Box height={1} backgroundColor={c.border} />
+        <Box flexDirection="column" paddingX={1} paddingTop={1}>
+          <Text dim color={c.dim}>below</Text>
+        </Box>
+      </Box>
+    ),
+  },
+  {
+    id: "ascii",
+    label: "ASCII (+--+)",
+    desc: "Classic ASCII art box corners and lines",
+    borderStyle: "ascii",
+    render: (c) => (
+      <Box borderStyle={"ascii" as BorderStyleName} borderColor={c.border} paddingX={1} height={5} flexDirection="column">
+        <Text bold color={c.fg}>Panel</Text>
+        <Text dim color={c.dim}>ascii borders</Text>
+      </Box>
+    ),
+  },
+  {
+    id: "single",
+    label: "Single (─│)",
+    desc: "Thin Unicode box-drawing characters",
+    borderStyle: "single",
+    render: (c) => (
+      <Box borderStyle={"single" as BorderStyleName} borderColor={c.border} paddingX={1} height={5} flexDirection="column">
+        <Text bold color={c.fg}>Panel</Text>
+        <Text dim color={c.dim}>single line</Text>
+      </Box>
+    ),
+  },
+  {
+    id: "round",
+    label: "Round (╭─╮)",
+    desc: "Single line with rounded corners",
+    borderStyle: "round",
+    render: (c) => (
+      <Box borderStyle={"round" as BorderStyleName} borderColor={c.border} paddingX={1} height={5} flexDirection="column">
+        <Text bold color={c.fg}>Panel</Text>
+        <Text dim color={c.dim}>rounded corners</Text>
+      </Box>
+    ),
+  },
+  {
+    id: "double",
+    label: "Double (╔═╗)",
+    desc: "Double-line Unicode borders",
+    borderStyle: "double",
+    render: (c) => (
+      <Box borderStyle={"double" as BorderStyleName} borderColor={c.border} paddingX={1} height={5} flexDirection="column">
+        <Text bold color={c.fg}>Panel</Text>
+        <Text dim color={c.dim}>double line</Text>
+      </Box>
+    ),
+  },
+  {
+    id: "heavy",
+    label: "Heavy (┏━┓)",
+    desc: "Thick Unicode box-drawing lines",
+    borderStyle: "heavy",
+    render: (c) => (
+      <Box borderStyle={"heavy" as BorderStyleName} borderColor={c.border} paddingX={1} height={5} flexDirection="column">
+        <Text bold color={c.fg}>Panel</Text>
+        <Text dim color={c.dim}>heavy weight</Text>
+      </Box>
+    ),
+  },
+  {
+    id: "storm",
+    label: "Storm",
+    desc: "Storm framework signature border",
+    borderStyle: "storm",
+    render: (c) => (
+      <Box borderStyle={"storm" as BorderStyleName} borderColor={c.border} paddingX={1} height={5} flexDirection="column">
+        <Text bold color={c.fg}>Panel</Text>
+        <Text dim color={c.dim}>storm style</Text>
+      </Box>
+    ),
+  },
+  {
+    id: "focused",
+    label: "Focused state",
+    desc: "Any style with focus color applied",
+    render: (c, theme) => (
+      <Box borderStyle={theme.borderStyle} borderColor={c.borderFocus} paddingX={1} height={5} flexDirection="column">
+        <Text bold color={c.fg}>Panel</Text>
+        <Text color={c.borderFocus}>◀ focused</Text>
+      </Box>
+    ),
+  },
+];
+
+const SPACING_OPTIONS: Array<{ id: string; label: string; desc: string; gap: number }> = [
+  { id: "none",        label: "None",        desc: "0 — panels flush together",  gap: 0 },
+  { id: "tight",       label: "Tight",       desc: "1 — minimal breathing room", gap: 1 },
+  { id: "comfortable", label: "Comfortable", desc: "2 — balanced default",       gap: 2 },
+  { id: "loose",       label: "Loose",       desc: "3 — spacious layout",        gap: 3 },
+];
+
+const CURSOR_OPTIONS: Array<{ id: string; label: string; desc: string; char: string }> = [
+  { id: "triangle",  label: "▶  Triangle",  desc: "Filled right-pointing triangle", char: "▶" },
+  { id: "chevron",   label: "❯  Chevron",   desc: "Heavy angle quotation mark",     char: "❯" },
+  { id: "arrow",     label: "→  Arrow",     desc: "Rightwards arrow",               char: "→" },
+  { id: "angle",     label: "›  Angle",     desc: "Single right angle quotation",   char: "›" },
+  { id: "dbl-angle", label: "»  Dbl Angle", desc: "Right-pointing double angle",    char: "»" },
+  { id: "bullet",    label: "•  Bullet",    desc: "Filled circle bullet",           char: "•" },
+  { id: "star",      label: "✦  Star",      desc: "Four-pointed black star",        char: "✦" },
+  { id: "ascii",     label: ">  ASCII",     desc: "Plain greater-than sign",        char: ">" },
+  { id: "dot",       label: "·  Dot",       desc: "Middle dot",                     char: "·" },
+];
+
+function PickerView<T extends { id: string; label: string; desc: string }>({
+  title, hint, statusText, items, cursorIdx, isApplied, c, cursorChar, renderPreview,
+}: {
+  title: string;
+  hint: string;
+  statusText?: string;
+  items: T[];
+  cursorIdx: number;
+  isApplied: (item: T) => boolean;
+  c: TuiPalette;
+  cursorChar: string;
+  renderPreview: (item: T) => React.ReactNode;
+}) {
+  const current = items[cursorIdx];
+  return (
+    <Box flexDirection="column" flex={1}>
+      <Box flexDirection="row" gap={2} marginBottom={1} alignItems="center">
+        <Text bold color={c.fg}>{title}</Text>
+        <Text dim color={c.dim}>{hint}</Text>
+        {statusText && <Text color={c.accent}>{statusText}</Text>}
+      </Box>
+      <Box flexDirection="row" flex={1}>
+        <Box flexDirection="column" width={24} marginRight={2}>
+          {items.map((item, i) => {
+            const isCursor = i === cursorIdx;
+            const applied = isApplied(item);
+            return (
+              <Box key={item.id} flexDirection="row" gap={1} alignItems="center"
+                backgroundColor={isCursor ? c.selectedBg : undefined}>
+                <Text color={isCursor ? c.borderFocus : c.dim}>{isCursor ? cursorChar : " "}</Text>
+                <Text color={isCursor ? c.borderFocus : c.fg} bold={isCursor}>{item.label}</Text>
+                {applied && <Text color={c.accent}> ✓</Text>}
+              </Box>
+            );
+          })}
+        </Box>
+        <Box flex={1} flexDirection="column">
+          {current && (
+            <>
+              <Text dim color={c.dim}>{current.desc}</Text>
+              <Box height={1} />
+              {renderPreview(current)}
+            </>
+          )}
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
 const CODE_SAMPLE = `// Active theme
 export const theme = {
   id: "__ID__",
@@ -154,6 +348,13 @@ function App() {
   const [activePane, setActivePane] = useState<"themes" | "tree" | "top" | "bottom">("themes");
   const [hintMode, setHintMode] = useState(false);
   const [resizeMode, setResizeMode] = useState(false);
+  const [borderDemoIdx, setBorderDemoIdx] = useState(0);
+  const [appliedBorderStyle, setAppliedBorderStyle] = useState<BorderStyleName | null>(null);
+  const effectiveBorderStyle = appliedBorderStyle ?? theme.borderStyle;
+  const [spacingDemoIdx, setSpacingDemoIdx] = useState(0);
+  const [paneGap, setPaneGap] = useState(0);
+  const [cursorDemoIdx, setCursorDemoIdx] = useState(0);
+  const [cursorChar, setCursorChar] = useState("▶");
 
   const flatTree = useMemo(() => flattenVisible(TREE_DATA, expandedIds), [expandedIds]);
   const filteredTree = useMemo(() => {
@@ -210,7 +411,7 @@ function App() {
     if (searchMode) {
       if (e.key === "escape" || e.key === "return") setSearchMode(false);
       else if (e.key === "backspace") setSearchFilter(s => s.slice(0, -1));
-      else if (e.char && e.char.length === 1 && !e.ctrl && !e.meta) setSearchFilter(s => s + e.char);
+      else if (e.char && e.char.length === 1 && e.char !== "/" && !e.ctrl && !e.meta) setSearchFilter(s => s + e.char);
       return;
     }
     if (resizeMode) {
@@ -229,7 +430,7 @@ function App() {
     if (e.ctrl && e.key === "c") { exit(); return; }
     if (e.key === "q" || e.key === "escape" || e.key === "b") { chosenCode = 99; exit(); return; }
     if (e.key === "?") { setShowHelp(true); return; }
-    if (e.key === "/") { setSearchMode(true); return; }
+    if (e.key === "/" || e.char === "/") { setSearchMode(true); return; }
     if (e.key === "r") { setResizeMode(true); return; }
 
     if (e.ctrl && (e.key === "space" || e.char === " ")) { setHintMode(h => !h); return; }
@@ -271,15 +472,56 @@ function App() {
       else if (e.key === "h" || e.key === "left") navigateTree("left");
       else if (e.key === "l" || e.key === "right") navigateTree("right");
     } else if (activePane === "top") {
-      if (e.key === "h" || e.key === "left") cycleTab(-1);
-      else if (e.key === "l" || e.key === "right") cycleTab(1);
+      if (focusedNode?.id === "pane-borders" && activeTab === "overview") {
+        if (e.key === "j" || e.key === "down") {
+          setBorderDemoIdx(i => Math.min(BORDER_DEMOS.length - 1, i + 1));
+        } else if (e.key === "k" || e.key === "up") {
+          setBorderDemoIdx(i => Math.max(0, i - 1));
+        } else if (e.key === "return") {
+          const demo = BORDER_DEMOS[borderDemoIdx];
+          if (demo?.borderStyle) setAppliedBorderStyle(demo.borderStyle);
+        } else if (e.key === "h" || e.key === "left") {
+          cycleTab(-1);
+        } else if (e.key === "l" || e.key === "right") {
+          cycleTab(1);
+        }
+      } else if (focusedNode?.id === "pane-spacing" && activeTab === "overview") {
+        if (e.key === "j" || e.key === "down") {
+          setSpacingDemoIdx(i => Math.min(SPACING_OPTIONS.length - 1, i + 1));
+        } else if (e.key === "k" || e.key === "up") {
+          setSpacingDemoIdx(i => Math.max(0, i - 1));
+        } else if (e.key === "return") {
+          const opt = SPACING_OPTIONS[spacingDemoIdx];
+          if (opt) setPaneGap(opt.gap);
+        } else if (e.key === "h" || e.key === "left") {
+          cycleTab(-1);
+        } else if (e.key === "l" || e.key === "right") {
+          cycleTab(1);
+        }
+      } else if (focusedNode?.id === "pane-cursor" && activeTab === "overview") {
+        if (e.key === "j" || e.key === "down") {
+          setCursorDemoIdx(i => Math.min(CURSOR_OPTIONS.length - 1, i + 1));
+        } else if (e.key === "k" || e.key === "up") {
+          setCursorDemoIdx(i => Math.max(0, i - 1));
+        } else if (e.key === "return") {
+          const opt = CURSOR_OPTIONS[cursorDemoIdx];
+          if (opt) setCursorChar(opt.char);
+        } else if (e.key === "h" || e.key === "left") {
+          cycleTab(-1);
+        } else if (e.key === "l" || e.key === "right") {
+          cycleTab(1);
+        }
+      } else {
+        if (e.key === "h" || e.key === "left") cycleTab(-1);
+        else if (e.key === "l" || e.key === "right") cycleTab(1);
+      }
     }
   });
 
   return (
     <Box flexDirection="column" width={width} height={height} backgroundColor={theme.colors.bg}>
       <Box
-        borderStyle={theme.borderStyle}
+        borderStyle={effectiveBorderStyle}
         borderColor={theme.colors.border}
         paddingX={1}
       >
@@ -289,7 +531,7 @@ function App() {
         <Text dim color={theme.colors.dim}>  ({theme.id})</Text>
       </Box>
 
-      <Box flex={1} flexDirection="row">
+      <Box flex={1} flexDirection="row" {...(paneGap > 0 ? { gap: paneGap } : {})}>
         <ThemeSidebar
           themes={THEMES}
           activeId={theme.id}
@@ -298,12 +540,13 @@ function App() {
           theme={theme}
         />
 
-        <Box flex={1} flexDirection="row">
+        <Box flex={1} flexDirection="row" {...(paneGap > 0 ? { gap: paneGap } : {})}>
           <Box
             width={Math.max(16, treeWidth)}
             flexDirection="column"
-            borderStyle={theme.borderStyle}
+            borderStyle={effectiveBorderStyle}
             borderColor={treeFocused ? c.borderFocus : c.border}
+            {...(paneGap === 0 ? { borderLeft: false } : {})}
             paddingX={1}
             paddingTop={1}
           >
@@ -315,7 +558,6 @@ function App() {
                 borderColor={c.borderFocus}
                 paddingX={1}
               >
-                <Text dim color={c.dim}>/ </Text>
                 <Text color={c.fg}>{searchFilter}_</Text>
               </Box>
             )}
@@ -353,14 +595,15 @@ function App() {
             </ScrollView>
           </Box>
 
-          <Box flexDirection="column" flex={1}>
+          <Box flexDirection="column" flex={1} {...(paneGap > 0 ? { gap: paneGap } : {})}>
             <Box
               flexDirection="column"
               flexGrow={topHeight}
               flexShrink={1}
               flexBasis={0}
-              borderStyle={theme.borderStyle}
+              borderStyle={effectiveBorderStyle}
               borderColor={topFocused ? c.borderFocus : c.border}
+              {...(paneGap === 0 ? { borderLeft: false } : {})}
               paddingX={1}
               paddingTop={1}
             >
@@ -386,6 +629,72 @@ function App() {
               <Box flex={1} marginTop={1}>
                 {!focusedNode ? (
                   <Text color={c.dim}>select an item</Text>
+                ) : activeTab === "overview" && focusedNode.id === "pane-borders" ? (
+                  <PickerView
+                    title="Pane Borders"
+                    hint="j/k · Enter apply"
+                    statusText={appliedBorderStyle ? `applied: ${appliedBorderStyle}` : undefined}
+                    items={BORDER_DEMOS}
+                    cursorIdx={activePane === "top" ? borderDemoIdx : -1}
+                    isApplied={demo => !!demo.borderStyle && demo.borderStyle === appliedBorderStyle}
+                    c={c}
+                    cursorChar={cursorChar}
+                    renderPreview={demo => (
+                      <Box flexDirection="column" gap={1}>
+                        <Box width={28}>{demo.render(c, theme)}</Box>
+                        {!demo.borderStyle && <Text dim color={c.dim}>(visual only — no borderStyle)</Text>}
+                      </Box>
+                    )}
+                  />
+                ) : activeTab === "overview" && focusedNode.id === "pane-spacing" ? (
+                  <PickerView
+                    title="Panel Spacing"
+                    hint="j/k · Enter apply"
+                    statusText={`current: ${paneGap}ch`}
+                    items={SPACING_OPTIONS}
+                    cursorIdx={activePane === "top" ? spacingDemoIdx : -1}
+                    isApplied={opt => opt.gap === paneGap}
+                    c={c}
+                    cursorChar={cursorChar}
+                    renderPreview={opt => (
+                      <Box flexDirection="row" {...(opt.gap > 0 ? { gap: opt.gap } : {})}>
+                        {["A", "B", "C"].map((label, i) => (
+                          <Box
+                            key={label}
+                            borderStyle={effectiveBorderStyle}
+                            borderColor={c.border}
+                            paddingX={1}
+                            width={10}
+                            {...(opt.gap === 0 && i > 0 ? { borderLeft: false } : {})}
+                          >
+                            <Text dim color={c.dim}>pane {label}</Text>
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
+                  />
+                ) : activeTab === "overview" && focusedNode.id === "pane-cursor" ? (
+                  <PickerView
+                    title="Cursor Style"
+                    hint="j/k · Enter apply"
+                    statusText={`current: ${cursorChar}`}
+                    items={CURSOR_OPTIONS}
+                    cursorIdx={activePane === "top" ? cursorDemoIdx : -1}
+                    isApplied={opt => opt.char === cursorChar}
+                    c={c}
+                    cursorChar={cursorChar}
+                    renderPreview={opt => (
+                      <Box flexDirection="column" gap={1}>
+                        {["Item One", "Item Two", "Item Three"].map((label, i) => (
+                          <Box key={label} flexDirection="row" gap={1}
+                            backgroundColor={i === 1 ? c.selectedBg : undefined}>
+                            <Text color={i === 1 ? c.borderFocus : c.dim}>{i === 1 ? opt.char : " "}</Text>
+                            <Text color={i === 1 ? c.borderFocus : c.fg} bold={i === 1}>{label}</Text>
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
+                  />
                 ) : activeTab === "overview" ? (
                   <Box flexDirection="column" gap={1}>
                     <Text bold color={c.fg}>{focusedNode.label}</Text>
@@ -418,7 +727,7 @@ function App() {
                     <Text color={c.fg}>{focusedNode.children?.length || 0}</Text>
                   </Box>
                 ) : activeTab === "code" ? (
-                  <Box borderStyle={theme.borderStyle} borderColor={c.border} padding={1}>
+                  <Box borderStyle={effectiveBorderStyle} borderColor={c.border} padding={1}>
                     <SyntaxHighlight
                       language="typescript"
                       code={CODE_SAMPLE
@@ -444,8 +753,9 @@ function App() {
               flexGrow={100 - topHeight}
               flexShrink={1}
               flexBasis={0}
-              borderStyle={theme.borderStyle}
+              borderStyle={effectiveBorderStyle}
               borderColor={bottomFocused ? c.borderFocus : c.border}
+              {...(paneGap === 0 ? { borderLeft: false, borderTop: false } : {})}
               paddingX={1}
             >
               <Text bold dim color={c.dim}>STATUS / PREVIEW</Text>
