@@ -650,7 +650,7 @@ function App() {
             flexShrink={1}
             flexBasis={0}
             flexDirection="column"
-            borderStyle="round"
+            borderStyle="single"
             borderColor={activePane === "tree" ? C.borderFocused : C.border}
             paddingX={1}
           >
@@ -667,6 +667,7 @@ function App() {
                 const indent = "  ".repeat(level);
                 return (
                   <Box key={node.id} flexDirection="row" alignItems="center">
+                    <Text color={isFocused ? C.borderFocused : C.bg}>{isFocused ? "❯ " : "  "}</Text>
                     <Text
                       color={C.fg}
                       backgroundColor={isFocused ? C.selectedBg : undefined}
@@ -685,7 +686,7 @@ function App() {
             flexShrink={1}
             flexBasis={0}
             flexDirection="column"
-            borderStyle="round"
+            borderStyle="single"
             borderColor={activePane === "calcs" ? C.borderFocused : C.border}
             paddingX={1}
           >
@@ -710,7 +711,7 @@ function App() {
                       const active = i === focusedCalcIdx;
                       return (
                         <Box key={calc.calc_name} flexDirection="row" gap={1} alignItems="center">
-                          <Text color={active ? C.accent : C.dim}>{active ? "●" : "○"}</Text>
+                          <Text color={active ? C.borderFocused : C.bg}>{active ? "❯" : " "}</Text>
                           <Text color={C.fg} backgroundColor={active ? C.selectedBg : undefined} bold={active}>
                             {calc.display_name}
                           </Text>
@@ -747,7 +748,7 @@ function App() {
         <Box
           flex={1}
           flexDirection="column"
-          borderStyle="round"
+          borderStyle="single"
           borderColor={activePane === "detail" ? C.borderFocused : C.border}
           paddingX={1}
         >
@@ -885,16 +886,20 @@ function App() {
           <Text bold color={C.borderFocused}>Open Project</Text>
           <Box height={1} />
           <ScrollView height={8}>
-            {RECENT_PROJECTS.map((p, i) => (
-              <Box key={p.path} flexDirection="row" gap={1}>
-                <Text color={C.fg}
-                  backgroundColor={i === modalFocusIdx ? C.selectedBg : undefined}
-                  bold={i === modalFocusIdx}>
-                  {` ${p.name.padEnd(26)} `}
-                </Text>
-                <Text dim color={C.dim}>{p.last}</Text>
-              </Box>
-            ))}
+            {RECENT_PROJECTS.map((p, i) => {
+              const cursor = i === modalFocusIdx;
+              return (
+                <Box key={p.path} flexDirection="row" gap={1}>
+                  <Text color={cursor ? C.borderFocused : C.bg}>{cursor ? "❯" : " "}</Text>
+                  <Text color={C.fg}
+                    backgroundColor={cursor ? C.selectedBg : undefined}
+                    bold={cursor}>
+                    {` ${p.name.padEnd(26)} `}
+                  </Text>
+                  <Text dim color={C.dim}>{p.last}</Text>
+                </Box>
+              );
+            })}
           </ScrollView>
           <Box height={1} />
           {RECENT_PROJECTS[modalFocusIdx] && (
@@ -923,6 +928,7 @@ function App() {
                 return (
                   <Box key={item.id} flexDirection="row" gap={1}
                     backgroundColor={focused ? C.selectedBg : undefined}>
+                    <Text color={focused ? C.borderFocused : C.bg}>{focused ? "❯" : " "}</Text>
                     <Text color={focused ? C.tabActive : C.fg} bold={focused}>
                       {` ${item.name.padEnd(22)} `}
                     </Text>
@@ -1000,6 +1006,7 @@ function IOView({
               return (
                 <Box key={row.field} flexDirection="row" gap={1} alignItems="center"
                   backgroundColor={focused ? C.selectedBg : undefined}>
+                  <Text color={focused ? C.borderFocused : C.bg}>{focused ? "❯" : " "}</Text>
                   <Box width={22}>
                     <Text color={row.isEdited ? C.accent : C.fg}>{row.label}</Text>
                   </Box>
@@ -1032,6 +1039,7 @@ function IOView({
               return (
                 <Box key={row.field} flexDirection="row" gap={1} alignItems="center"
                   backgroundColor={focused ? C.selectedBg : undefined}>
+                  <Text color={focused ? C.borderFocused : C.bg}>{focused ? "❯" : " "}</Text>
                   <Box width={22}><Text color={C.fg}>{row.label}</Text></Box>
                   <Box width={12}><Text color={focused ? C.tabActive : C.fg}>{row.value}</Text></Box>
                   <Box width={8}><Text dim color={C.dim}>{row.units}</Text></Box>
