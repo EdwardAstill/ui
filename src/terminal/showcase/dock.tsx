@@ -345,11 +345,15 @@ function App() {
   const [focusedInputIdx, setFocusedInputIdx] = useState(0);
   const [focusedOutputIdx, setFocusedOutputIdx] = useState(0);
   const [focusedCol, setFocusedCol] = useState<"field" | "value" | "unit" | "format">("value");
-  const [editingInputField, setEditingInputField] = useState<string | null>(null);
+  // Editing any cell: keyed by `${side}:${field}:${col}`
+  const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [cursorIdx, setCursorIdx] = useState(0);
-  const [editedValues, setEditedValues] = useState<Record<string, string>>({});
+  const [editedCells, setEditedCells] = useState<Record<string, string>>({});
   const [runState, setRunState] = useState<"idle" | "done" | "running">("idle");
+
+  const cellKey = (side: "inputs" | "outputs", field: string, col: "value" | "unit" | "format") =>
+    `${side}:${field}:${col}`;
 
   // Modals
   const [modalMode, setModalMode] = useState<ModalMode>("none");
@@ -372,21 +376,23 @@ function App() {
     [activeProjectCalcs],
   );
   const focusedCalc = calcList[focusedCalcIdx];
+  const buildRow = useCallback((side: "inputs" | "outputs", field: string, spec: { value: number; units: string; label: string; format?: string }) => {
+    const vKey = cellKey(side, field, "value");
+    const uKey = cellKey(side, field, "unit");
+    const fKey = cellKey(side, field, "format");
+    const value = editedCells[vKey] ?? String(spec.value);
+    const units = editedCells[uKey] ?? spec.units;
+    const format = editedCells[fKey] ?? spec.format ?? DEFAULT_FORMAT;
+    const isEdited = vKey in editedCells || uKey in editedCells || fKey in editedCells;
+    return { field, label: spec.label, value, units, format, isEdited };
+  }, [editedCells]);
+
   const inputRows = useMemo(() => focusedCalc
-    ? Object.entries(focusedCalc.inputs).map(([field, spec]) => ({
-        field, label: spec.label,
-        value: editedValues[field] ?? String(spec.value),
-        units: spec.units,
-        format: spec.format ?? DEFAULT_FORMAT,
-        isEdited: field in editedValues,
-      }))
-    : [], [focusedCalc, editedValues]);
+    ? Object.entries(focusedCalc.inputs).map(([field, spec]) => buildRow("inputs", field, spec))
+    : [], [focusedCalc, buildRow]);
   const outputRows = useMemo(() => focusedCalc
-    ? Object.entries(focusedCalc.outputs).map(([field, spec]) => ({
-        field, label: spec.label, value: String(spec.value), units: spec.units,
-        format: spec.format ?? DEFAULT_FORMAT,
-      }))
-    : [], [focusedCalc]);
+    ? Object.entries(focusedCalc.outputs).map(([field, spec]) => buildRow("outputs", field, spec))
+    : [], [focusedCalc, buildRow]);
 
   // Filter add-calc library
   const filteredLibrary = useMemo(() => {
@@ -431,23 +437,23 @@ function App() {
   }, []);
 
   const saveEdit = useCallback(() => {
-    if (editingInputField) {
-      setEditedValues(v => ({ ...v, [editingInputField]: editValue }));
+    if (editingCellKey) {
+      setEditedCells(v => ({ ...v, [editingCellKey]: editValue }));
     }
-    setEditingInputField(null);
+    setEditingCellKey(null);
     setEditValue("");
     setCursorIdx(0);
-  }, [editingInputField, editValue]);
+  }, [editingCellKey, editValue]);
 
   const cancelEdit = useCallback(() => {
-    setEditingInputField(null); setEditValue(""); setCursorIdx(0);
+    setEditingCellKey(null); setEditValue(""); setCursorIdx(0);
   }, []);
 
   const mockRun = useCallback(() => {
     setRunState("running");
     setTimeout(() => {
       setRunState("done");
-      setEditedValues({});
+      setEditedCells({});
       setTimeout(() => setRunState("idle"), 1400);
     }, 400);
   }, []);
@@ -455,7 +461,7 @@ function App() {
   // --------------------------- Input ---------------------------
   useInput((e) => {
     // 1. Edit mode intercepts everything
-    if (editingInputField) {
+    if (editingCellKey) {
       if (e.key === "escape") { cancelEdit(); return; }
       if (e.key === "return") { saveEdit(); return; }
       if (e.key === "backspace") {
@@ -608,18 +614,31 @@ function App() {
           if (focusedIOSide === "inputs") setFocusedInputIdx(i => Math.max(0, i - 1));
           else setFocusedOutputIdx(i => Math.max(0, i - 1));
         } else if (e.key === "h" || e.key === "left") {
-          setFocusedCol(c => COLS[Math.max(0, COLS.indexOf(c) - 1)]!);
+          // At leftmost column on outputs → jump back to inputs rightmost
+          if (focusedIOSide === "outputs" && focusedCol === "field") {
+            setFocusedIOSide("inputs"); setFocusedCol("format");
+          } else {
+            setFocusedCol(c => COLS[Math.max(0, COLS.indexOf(c) - 1)]!);
+          }
         } else if (e.key === "l" || e.key === "right") {
-          setFocusedCol(c => COLS[Math.min(COLS.length - 1, COLS.indexOf(c) + 1)]!);
-        } else if (e.key === "return" && focusedIOSide === "inputs" && focusedCol === "value") {
-          const row = inputRows[focusedInputIdx];
+          // At rightmost column on inputs → jump to outputs leftmost
+          if (focusedIOSide === "inputs" && focusedCol === "format") {
+            setFocusedIOSide("outputs"); setFocusedCol("field");
+          } else {
+            setFocusedCol(c => COLS[Math.min(COLS.length - 1, COLS.indexOf(c) + 1)]!);
+          }
+        } else if (e.key === "return" && focusedCol !== "field") {
+          const row = focusedIOSide === "inputs" ? inputRows[focusedInputIdx] : outputRows[focusedOutputIdx];
           if (row) {
-            setEditingInputField(row.field);
-            setEditValue(row.value);
-            setCursorIdx(row.value.length);
+            const current = focusedCol === "value" ? row.value :
+                            focusedCol === "unit"  ? row.units :
+                            row.format;
+            setEditingCellKey(cellKey(focusedIOSide, row.field, focusedCol));
+            setEditValue(current);
+            setCursorIdx(current.length);
           }
         } else if (e.char === "s" && !e.ctrl) {
-          if (Object.keys(editedValues).length > 0) mockRun();
+          if (Object.keys(editedCells).length > 0) mockRun();
         }
       } else {
         // non-IO sub-tabs: h/l cycles between them
@@ -781,7 +800,7 @@ function App() {
               <Box flex={1} />
               {runState === "running" ? <Text color={C.warn}>⟳ running…</Text> :
                runState === "done" ? <Text color={C.accent}>✓ saved + run</Text> :
-               Object.keys(editedValues).length > 0 ? <Text dim color={C.dim}>unsaved · <Text color={C.fg}>s</Text> save+run</Text> :
+               Object.keys(editedCells).length > 0 ? <Text dim color={C.dim}>unsaved · <Text color={C.fg}>s</Text> save+run</Text> :
                <Text dim color={C.dim}>s save+run</Text>}
             </Box>
             <Box height={1} />
@@ -796,7 +815,7 @@ function App() {
                 focusedInputIdx={focusedInputIdx}
                 focusedOutputIdx={focusedOutputIdx}
                 focusedCol={focusedCol}
-                editingField={editingInputField}
+                editingCellKey={editingCellKey}
                 editValue={editValue}
                 cursorIdx={cursorIdx}
                 isDetailFocused={activePane === "detail"}
@@ -849,13 +868,13 @@ function App() {
         <Text dim color={C.dim}>calc: </Text>
         <Text color={C.fg}>{focusedCalc?.display_name ?? "—"}</Text>
         <Box flex={1} />
-        {editingInputField && <Text color={C.warn} bold>EDITING</Text>}
+        {editingCellKey && <Text color={C.warn} bold>EDITING</Text>}
         {modalMode !== "none" && <Text color={C.warn} bold>{modalMode.toUpperCase()}</Text>}
       </Box>
 
       <Footer
         bindings={
-          editingInputField
+          editingCellKey
             ? [
                 { key: "←/→", label: "cursor" },
                 { key: "Home/End", label: "line" },
@@ -1006,7 +1025,7 @@ function Cell({ width, text, rowFocused, cellFocused, textColor }: {
 
 function IOView({
   inputRows, outputRows, focusedSide, focusedInputIdx, focusedOutputIdx, focusedCol,
-  editingField, editValue, cursorIdx, isDetailFocused,
+  editingCellKey, editValue, cursorIdx, isDetailFocused,
 }: {
   inputRows: IORow[];
   outputRows: IORow[];
@@ -1014,11 +1033,18 @@ function IOView({
   focusedInputIdx: number;
   focusedOutputIdx: number;
   focusedCol: IOCol;
-  editingField: string | null;
+  editingCellKey: string | null;
   editValue: string;
   cursorIdx: number;
   isDetailFocused: boolean;
 }) {
+  const renderCellText = (side: "inputs" | "outputs", field: string, col: "value" | "unit" | "format", text: string) => {
+    const key = `${side}:${field}:${col}`;
+    if (editingCellKey === key) {
+      return <EditableText value={editValue} cursorIdx={cursorIdx} focused />;
+    }
+    return text;
+  };
   const renderSide = (
     rows: IORow[],
     side: "inputs" | "outputs",
@@ -1041,18 +1067,17 @@ function IOView({
           {rows.length === 0 ? <Text dim color={C.dim}>no {side}</Text> :
             rows.map((row, i) => {
               const rowFocused = isSideFocused && i === focusedIdx;
-              const editing = side === "inputs" && editingField === row.field;
               return (
                 <Box key={row.field} flexDirection="row" gap={1} alignItems="center">
                   <Text color={rowFocused ? C.borderFocused : C.bg}>{rowFocused ? "❯" : " "}</Text>
                   <Cell width={22} rowFocused={rowFocused} cellFocused={rowFocused && focusedCol === "field"}
                     text={row.label} textColor={row.isEdited ? C.accent : C.fg} />
                   <Cell width={10} rowFocused={rowFocused} cellFocused={rowFocused && focusedCol === "value"}
-                    text={editing ? <EditableText value={editValue} cursorIdx={cursorIdx} focused /> : row.value} />
+                    text={renderCellText(side, row.field, "value", row.value)} />
                   <Cell width={7} rowFocused={rowFocused} cellFocused={rowFocused && focusedCol === "unit"}
-                    text={row.units} textColor={C.dim} />
+                    text={renderCellText(side, row.field, "unit", row.units)} textColor={C.dim} />
                   <Cell width={8} rowFocused={rowFocused} cellFocused={rowFocused && focusedCol === "format"}
-                    text={row.format} textColor={C.dim} />
+                    text={renderCellText(side, row.field, "format", row.format)} textColor={C.dim} />
                 </Box>
               );
             })
