@@ -14,7 +14,7 @@
 #   ui tui showcase <demo>              → that demo directly
 #                                         (feature|logbook|bios95|
 #                                          brutalist|flightdeck|
-#                                          posting|oxide)
+#                                          posting|oxide|dock)
 #   ui tui style                        → terminal style guide
 #   ui web showcase                     → web showcase (http://localhost:3000)
 #   ui web style                        → web style guide (?mode=style)
@@ -41,7 +41,7 @@ Usage:
   ui tui showcase <demo>       open demo directly
                                demos: feature, logbook, bios95,
                                       brutalist, flightdeck,
-                                      posting, oxide
+                                      posting, oxide, dock
   ui tui style                 terminal style guide
   ui web showcase              web showcase  (http://localhost:3000)
   ui web style                 web style guide (http://localhost:3000/?mode=style)
@@ -76,6 +76,7 @@ run_terminal_demo() {
     flightdeck) file="showcase/flightdeck.tsx" ;;
     posting)    file="showcase/posting.tsx" ;;
     oxide)      file="showcase/oxide.tsx" ;;
+    dock)       file="showcase/dock.tsx" ;;
     *) echo "unknown demo: $1" >&2; exit 1 ;;
   esac
   (cd "$TERMINAL_DIR" && bun run "$file") 2>/dev/null || rc=$?
@@ -95,6 +96,7 @@ run_showcase_picker() {
     34) run_terminal_demo flightdeck ;;
     35) run_terminal_demo posting ;;
     36) run_terminal_demo oxide ;;
+    37) run_terminal_demo dock ;;
     "$BACK_CODE") run_top_menu ;;
     *)  exit 0 ;;
   esac

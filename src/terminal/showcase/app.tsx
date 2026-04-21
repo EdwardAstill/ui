@@ -1,5 +1,5 @@
 /**
- * Showcase demo picker — small Storm TUI that lists the 7 demo screens
+ * Showcase demo picker — small Storm TUI that lists the 8 demo screens
  * and exits with a code the bash dispatcher turns into a `bun run` of
  * the actual demo file.
  *
@@ -10,6 +10,7 @@
  *   34  flightdeck  (NASA cockpit instrument — Ad Astra vibe)
  *   35  posting     (modern textual API client — Posting vibe)
  *   36  oxide       (dark cloud shell — Oxide vibe)
+ *   37  dock        (Pyseas-Dock calc panels — strip-bordered, mock data)
  *    1  cancel
  */
 
@@ -41,6 +42,7 @@ const DEMOS: DemoEntry[] = [
   { code: 34, name: "flightdeck", label: "Flightdeck",       hint: "cockpit instrument   · Ad Astra"        },
   { code: 35, name: "posting",    label: "Posting",          hint: "modern API client    · Textual purple"  },
   { code: 36, name: "oxide",      label: "Oxide Shell",      hint: "dark cloud shell     · Oxide"           },
+  { code: 37, name: "dock",       label: "Dock TUI",         hint: "Pyseas-Dock panels   · mock calcs"      },
 ];
 
 function Picker() {
@@ -55,7 +57,7 @@ function Picker() {
     else if (e.key === "k" || e.key === "up") setIdx(i => (i - 1 + DEMOS.length) % DEMOS.length);
     else if (e.key === "return" || e.key === "space") { chosenCode = DEMOS[idx]!.code; exit(); }
 
-    const digitMap: Record<string, number> = { "1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6 };
+    const digitMap: Record<string, number> = { "1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7 };
     if (e.char && digitMap[e.char] !== undefined && digitMap[e.char]! < DEMOS.length) {
       chosenCode = DEMOS[digitMap[e.char]!]!.code; exit();
     }
