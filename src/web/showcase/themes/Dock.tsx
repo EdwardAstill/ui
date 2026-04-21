@@ -273,6 +273,8 @@ const styles = `
   display: flex;
   overflow: hidden;
   min-height: 0;
+  gap: 1px;
+  background: rgba(255,255,255,0.08);
 }
 
 [data-theme="dock"] .dk-panel {
@@ -281,10 +283,8 @@ const styles = `
   flex-direction: column;
   overflow: hidden;
   min-width: 0;
-  border-right: 1px solid rgba(255,255,255,0.08);
+  background: #0A0A0B;
 }
-
-[data-theme="dock"] .dk-panel:last-child { border-right: none; }
 
 [data-theme="dock"] .dk-panel-header {
   height: 32px;
@@ -383,16 +383,16 @@ const styles = `
   flex: 1;
   display: flex;
   overflow: hidden;
+  gap: 1px;
+  background: rgba(255,255,255,0.08);
 }
 
 [data-theme="dock"] .dk-calc-col {
   flex: 1;
   padding: 10px 14px;
   overflow-y: auto;
-  border-right: 1px solid rgba(255,255,255,0.08);
+  background: #0A0A0B;
 }
-
-[data-theme="dock"] .dk-calc-col:last-child { border-right: none; }
 
 /* ── FIELD ROW ── */
 [data-theme="dock"] .dk-field-row {
@@ -767,9 +767,9 @@ const DockShowcase: FC<{ layout?: LayoutType; colors?: ColorPalette }> = () => {
               <ToggleGroup options={["Calculation", "Files", "Images"]} value={bottomTab} onChange={setBottomTab} />
               <div style={{ flex: 1 }} />
             </div>
-            <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
+            <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0, gap: 1, background: "rgba(255,255,255,0.08)" }}>
               {/* Calc list sidebar */}
-              <div style={{ width: 160, flexShrink: 0, borderRight: "1px solid rgba(255,255,255,0.08)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <div style={{ width: 160, flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden", background: "#0A0A0B" }}>
                 {calcAdding ? (
                   <>
                     <div className="dk-tree-list" style={{ flex: 1 }}>
@@ -801,7 +801,7 @@ const DockShowcase: FC<{ layout?: LayoutType; colors?: ColorPalette }> = () => {
               </div>
 
               {/* Right area: editor or add-preview */}
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden", background: "#0A0A0B" }}>
                 {calcAdding ? (
                   <div style={{ flex: 1, padding: "20px", overflow: "auto" }}>
                     {addSelected ? (

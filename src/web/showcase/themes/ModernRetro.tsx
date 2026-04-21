@@ -609,30 +609,25 @@ const styles = `
 
 .mr-statusbar {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   height: 20px;
-  background: var(--card-bg);
+  background: var(--border);
   border-top: 1px solid var(--border);
   font-family: Tahoma, Arial, sans-serif;
   font-size: 11px;
   color: var(--text);
+  gap: 1px;
 }
 
 .mr-statusbar-panel {
   padding: 0 8px;
-  border-right: 1px solid #808080;
-  height: 100%;
+  background: var(--card-bg);
   display: flex;
   align-items: center;
   white-space: nowrap;
 }
 
-[data-theme="modern-retro"][data-mode="dark"] .mr-statusbar-panel {
-  border-right-color: #555;
-}
-
 .mr-statusbar-panel:last-child {
-  border-right: none;
   flex: 1;
 }
 
