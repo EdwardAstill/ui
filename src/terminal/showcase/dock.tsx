@@ -84,11 +84,13 @@ type MockCalc = {
   display_name: string;
   category: string;
   description: string;
-  inputs: Record<string, { value: number; units: string; label: string }>;
-  outputs: Record<string, { value: number; units: string; label: string }>;
+  inputs: Record<string, { value: number; units: string; label: string; format?: string }>;
+  outputs: Record<string, { value: number; units: string; label: string; format?: string }>;
   guide: string;
   script: string;
 };
+
+const DEFAULT_FORMAT = "0.00";
 
 const CALCS: MockCalc[] = [
   {
@@ -342,6 +344,7 @@ function App() {
   const [focusedIOSide, setFocusedIOSide] = useState<"inputs" | "outputs">("inputs");
   const [focusedInputIdx, setFocusedInputIdx] = useState(0);
   const [focusedOutputIdx, setFocusedOutputIdx] = useState(0);
+  const [focusedCol, setFocusedCol] = useState<"field" | "value" | "unit" | "format">("value");
   const [editingInputField, setEditingInputField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [cursorIdx, setCursorIdx] = useState(0);
@@ -374,12 +377,14 @@ function App() {
         field, label: spec.label,
         value: editedValues[field] ?? String(spec.value),
         units: spec.units,
+        format: spec.format ?? DEFAULT_FORMAT,
         isEdited: field in editedValues,
       }))
     : [], [focusedCalc, editedValues]);
   const outputRows = useMemo(() => focusedCalc
     ? Object.entries(focusedCalc.outputs).map(([field, spec]) => ({
         field, label: spec.label, value: String(spec.value), units: spec.units,
+        format: spec.format ?? DEFAULT_FORMAT,
       }))
     : [], [focusedCalc]);
 
@@ -591,17 +596,8 @@ function App() {
         setSubTab(tabs[parseInt(e.char) - 1]!);
         return;
       }
-      if (e.key === "h" || e.key === "left") {
-        const tabs: SubTab[] = ["io", "json", "guide", "script"];
-        setSubTab(t => tabs[(tabs.indexOf(t) - 1 + tabs.length) % tabs.length]!);
-        return;
-      }
-      if (e.key === "l" || e.key === "right") {
-        const tabs: SubTab[] = ["io", "json", "guide", "script"];
-        setSubTab(t => tabs[(tabs.indexOf(t) + 1) % tabs.length]!);
-        return;
-      }
       if (subTab === "io") {
+        const COLS = ["field", "value", "unit", "format"] as const;
         if (e.key === "tab" && e.shift) {
           setFocusedIOSide(s => s === "inputs" ? "outputs" : "inputs"); return;
         }
@@ -611,7 +607,11 @@ function App() {
         } else if (e.key === "k" || e.key === "up") {
           if (focusedIOSide === "inputs") setFocusedInputIdx(i => Math.max(0, i - 1));
           else setFocusedOutputIdx(i => Math.max(0, i - 1));
-        } else if (e.key === "return" && focusedIOSide === "inputs") {
+        } else if (e.key === "h" || e.key === "left") {
+          setFocusedCol(c => COLS[Math.max(0, COLS.indexOf(c) - 1)]!);
+        } else if (e.key === "l" || e.key === "right") {
+          setFocusedCol(c => COLS[Math.min(COLS.length - 1, COLS.indexOf(c) + 1)]!);
+        } else if (e.key === "return" && focusedIOSide === "inputs" && focusedCol === "value") {
           const row = inputRows[focusedInputIdx];
           if (row) {
             setEditingInputField(row.field);
@@ -620,6 +620,18 @@ function App() {
           }
         } else if (e.char === "s" && !e.ctrl) {
           if (Object.keys(editedValues).length > 0) mockRun();
+        }
+      } else {
+        // non-IO sub-tabs: h/l cycles between them
+        if (e.key === "h" || e.key === "left") {
+          const tabs: SubTab[] = ["io", "json", "guide", "script"];
+          setSubTab(t => tabs[(tabs.indexOf(t) - 1 + tabs.length) % tabs.length]!);
+          return;
+        }
+        if (e.key === "l" || e.key === "right") {
+          const tabs: SubTab[] = ["io", "json", "guide", "script"];
+          setSubTab(t => tabs[(tabs.indexOf(t) + 1) % tabs.length]!);
+          return;
         }
       }
     }
@@ -783,6 +795,7 @@ function App() {
                 focusedSide={focusedIOSide}
                 focusedInputIdx={focusedInputIdx}
                 focusedOutputIdx={focusedOutputIdx}
+                focusedCol={focusedCol}
                 editingField={editingInputField}
                 editValue={editValue}
                 cursorIdx={cursorIdx}
@@ -972,10 +985,27 @@ function App() {
 }
 
 // --------------------------- I/O view ---------------------------
-type IORow = { field: string; label: string; value: string; units: string; isEdited?: boolean };
+type IORow = { field: string; label: string; value: string; units: string; format: string; isEdited?: boolean };
+type IOCol = "field" | "value" | "unit" | "format";
+
+function Cell({ width, text, rowFocused, cellFocused, textColor }: {
+  width: number;
+  text: string | React.ReactNode;
+  rowFocused: boolean;
+  cellFocused: boolean;
+  textColor?: string;
+}) {
+  // Row-focused: dim underline. Cell-focused: strong bg.
+  const bg = cellFocused ? C.selectedBg : rowFocused ? C.headerBg : undefined;
+  return (
+    <Box width={width} backgroundColor={bg}>
+      {typeof text === "string" ? <Text color={textColor ?? C.fg}>{text}</Text> : text}
+    </Box>
+  );
+}
 
 function IOView({
-  inputRows, outputRows, focusedSide, focusedInputIdx, focusedOutputIdx,
+  inputRows, outputRows, focusedSide, focusedInputIdx, focusedOutputIdx, focusedCol,
   editingField, editValue, cursorIdx, isDetailFocused,
 }: {
   inputRows: IORow[];
@@ -983,72 +1013,58 @@ function IOView({
   focusedSide: "inputs" | "outputs";
   focusedInputIdx: number;
   focusedOutputIdx: number;
+  focusedCol: IOCol;
   editingField: string | null;
   editValue: string;
   cursorIdx: number;
   isDetailFocused: boolean;
 }) {
+  const renderSide = (
+    rows: IORow[],
+    side: "inputs" | "outputs",
+    focusedIdx: number,
+    title: string,
+  ) => {
+    const isSideFocused = isDetailFocused && focusedSide === side;
+    return (
+      <Box flexDirection="column" flex={1}>
+        <Text bold color={isSideFocused ? C.tabActive : C.dim}>{title}</Text>
+        <Box height={1} />
+        <Box flexDirection="row" gap={1}>
+          <Text color={C.bg}>  </Text>
+          <Box width={22}><Text dim bold color={C.dim}>FIELD</Text></Box>
+          <Box width={10}><Text dim bold color={C.dim}>VALUE</Text></Box>
+          <Box width={7}><Text dim bold color={C.dim}>UNIT</Text></Box>
+          <Box width={8}><Text dim bold color={C.dim}>FORMAT</Text></Box>
+        </Box>
+        <ScrollView flex={1}>
+          {rows.length === 0 ? <Text dim color={C.dim}>no {side}</Text> :
+            rows.map((row, i) => {
+              const rowFocused = isSideFocused && i === focusedIdx;
+              const editing = side === "inputs" && editingField === row.field;
+              return (
+                <Box key={row.field} flexDirection="row" gap={1} alignItems="center">
+                  <Text color={rowFocused ? C.borderFocused : C.bg}>{rowFocused ? "❯" : " "}</Text>
+                  <Cell width={22} rowFocused={rowFocused} cellFocused={rowFocused && focusedCol === "field"}
+                    text={row.label} textColor={row.isEdited ? C.accent : C.fg} />
+                  <Cell width={10} rowFocused={rowFocused} cellFocused={rowFocused && focusedCol === "value"}
+                    text={editing ? <EditableText value={editValue} cursorIdx={cursorIdx} focused /> : row.value} />
+                  <Cell width={7} rowFocused={rowFocused} cellFocused={rowFocused && focusedCol === "unit"}
+                    text={row.units} textColor={C.dim} />
+                  <Cell width={8} rowFocused={rowFocused} cellFocused={rowFocused && focusedCol === "format"}
+                    text={row.format} textColor={C.dim} />
+                </Box>
+              );
+            })
+          }
+        </ScrollView>
+      </Box>
+    );
+  };
   return (
     <Box flexDirection="row" gap={3} flex={1}>
-      <Box flexDirection="column" flex={1}>
-        <Text bold color={isDetailFocused && focusedSide === "inputs" ? C.tabActive : C.dim}>Inputs</Text>
-        <Box height={1} />
-        <Box flexDirection="row" gap={1}>
-          <Box width={22}><Text dim bold color={C.dim}>FIELD</Text></Box>
-          <Box width={12}><Text dim bold color={C.dim}>VALUE</Text></Box>
-          <Box width={8}><Text dim bold color={C.dim}>UNIT</Text></Box>
-        </Box>
-        <ScrollView flex={1}>
-          {inputRows.length === 0 ? <Text dim color={C.dim}>no inputs</Text> :
-            inputRows.map((row, i) => {
-              const focused = isDetailFocused && focusedSide === "inputs" && i === focusedInputIdx;
-              const editing = editingField === row.field;
-              return (
-                <Box key={row.field} flexDirection="row" gap={1} alignItems="center"
-                  backgroundColor={focused ? C.selectedBg : undefined}>
-                  <Text color={focused ? C.borderFocused : C.bg}>{focused ? "❯" : " "}</Text>
-                  <Box width={22}>
-                    <Text color={row.isEdited ? C.accent : C.fg}>{row.label}</Text>
-                  </Box>
-                  <Box width={12}>
-                    {editing ? (
-                      <EditableText value={editValue} cursorIdx={cursorIdx} focused />
-                    ) : (
-                      <Text color={focused ? C.tabActive : C.fg}>{row.value}</Text>
-                    )}
-                  </Box>
-                  <Box width={8}><Text dim color={C.dim}>{row.units}</Text></Box>
-                </Box>
-              );
-            })
-          }
-        </ScrollView>
-      </Box>
-      <Box flexDirection="column" flex={1}>
-        <Text bold color={isDetailFocused && focusedSide === "outputs" ? C.tabActive : C.dim}>Outputs</Text>
-        <Box height={1} />
-        <Box flexDirection="row" gap={1}>
-          <Box width={22}><Text dim bold color={C.dim}>FIELD</Text></Box>
-          <Box width={12}><Text dim bold color={C.dim}>VALUE</Text></Box>
-          <Box width={8}><Text dim bold color={C.dim}>UNIT</Text></Box>
-        </Box>
-        <ScrollView flex={1}>
-          {outputRows.length === 0 ? <Text dim color={C.dim}>no outputs</Text> :
-            outputRows.map((row, i) => {
-              const focused = isDetailFocused && focusedSide === "outputs" && i === focusedOutputIdx;
-              return (
-                <Box key={row.field} flexDirection="row" gap={1} alignItems="center"
-                  backgroundColor={focused ? C.selectedBg : undefined}>
-                  <Text color={focused ? C.borderFocused : C.bg}>{focused ? "❯" : " "}</Text>
-                  <Box width={22}><Text color={C.fg}>{row.label}</Text></Box>
-                  <Box width={12}><Text color={focused ? C.tabActive : C.fg}>{row.value}</Text></Box>
-                  <Box width={8}><Text dim color={C.dim}>{row.units}</Text></Box>
-                </Box>
-              );
-            })
-          }
-        </ScrollView>
-      </Box>
+      {renderSide(inputRows, "inputs", focusedInputIdx, "Inputs")}
+      {renderSide(outputRows, "outputs", focusedOutputIdx, "Outputs")}
     </Box>
   );
 }
