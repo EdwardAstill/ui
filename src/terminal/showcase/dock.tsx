@@ -11,7 +11,7 @@
  * single-line borders only on floating modals + inline text inputs.
  */
 
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   render,
   Box,
@@ -22,7 +22,6 @@ import {
   useInput,
   useApp,
   useTerminal,
-  useTick,
 } from "@orchetron/storm";
 
 let chosenCode = 0;
@@ -43,9 +42,6 @@ const C = {
   headerBg: "#18181B",
 };
 
-function VLine({ color = C.border }: { color?: string }) {
-  return <Box width={1} backgroundColor={color} />;
-}
 function HLine({ color = C.border }: { color?: string }) {
   return <Box height={1} backgroundColor={color} />;
 }
@@ -301,11 +297,10 @@ function flattenVisible(nodes: Section[], expandedIds: Set<string>, level = 0): 
 }
 
 // Block cursor: render the char at `cursorIdx` with inverted colors (bg = fg).
-// At end-of-string, render a space with inverted colors.
-function EditableText({ value, cursorIdx, blink, focused }: {
+// At end-of-string, render a space with inverted colors. No blink.
+function EditableText({ value, cursorIdx, focused }: {
   value: string;
   cursorIdx: number;
-  blink: boolean;
   focused: boolean;
 }) {
   if (!focused) return <Text color={C.fg}>{value}</Text>;
@@ -315,11 +310,7 @@ function EditableText({ value, cursorIdx, blink, focused }: {
   return (
     <Box flexDirection="row">
       <Text color={C.fg}>{before}</Text>
-      {blink ? (
-        <Text color={C.bg} backgroundColor={C.fg}>{atCursor}</Text>
-      ) : (
-        <Text color={C.fg}>{atCursor}</Text>
-      )}
+      <Text color={C.bg} backgroundColor={C.fg}>{atCursor}</Text>
       <Text color={C.fg}>{after}</Text>
     </Box>
   );
@@ -363,22 +354,13 @@ function App() {
   const [modalCursor, setModalCursor] = useState(0);
   const [modalFocusIdx, setModalFocusIdx] = useState(0);
   const [addCalcSearch, setAddCalcSearch] = useState("");
+  const [addCalcCursor, setAddCalcCursor] = useState(0);
 
   // Projects (mock)
   const [projectName, setProjectName] = useState("Tower 404 Frame");
   const [activeProjectCalcs, setActiveProjectCalcs] = useState<string[]>(
     CALCS.map(c => c.calc_name),
   );
-
-  // Blinking block cursor
-  const blinkRef = useRef(true);
-  const [blinkTick, setBlinkTick] = useState(0);
-  useTick(500, () => {
-    blinkRef.current = !blinkRef.current;
-    setBlinkTick(t => t + 1);
-  });
-  const blink = blinkRef.current;
-  void blinkTick; // tick state forces rerender; value unused
 
   // Derived
   const flatTree = useMemo(() => flattenVisible(SECTIONS, expandedIds), [expandedIds]);
@@ -530,7 +512,7 @@ function App() {
         return;
       }
       if (modalMode === "add-calc") {
-        if (e.key === "escape") { setModalMode("none"); setAddCalcSearch(""); return; }
+        if (e.key === "escape") { setModalMode("none"); setAddCalcSearch(""); setAddCalcCursor(0); return; }
         if (e.key === "j" || e.key === "down") { setModalFocusIdx(i => Math.min(filteredLibrary.length - 1, i + 1)); return; }
         if (e.key === "k" || e.key === "up") { setModalFocusIdx(i => Math.max(0, i - 1)); return; }
         if (e.key === "return") {
@@ -538,12 +520,25 @@ function App() {
           if (pick && !activeProjectCalcs.includes(pick.id) && CALCS.find(c => c.calc_name === pick.id)) {
             setActiveProjectCalcs(list => [...list, pick.id]);
           }
-          setModalMode("none"); setAddCalcSearch(""); setModalFocusIdx(0);
+          setModalMode("none"); setAddCalcSearch(""); setAddCalcCursor(0); setModalFocusIdx(0);
           return;
         }
-        if (e.key === "backspace") { setAddCalcSearch(s => s.slice(0, -1)); setModalFocusIdx(0); return; }
-        if (e.char && e.char.length === 1 && !e.ctrl && !e.meta) {
-          setAddCalcSearch(s => s + e.char); setModalFocusIdx(0);
+        if (e.key === "left") { setAddCalcCursor(i => Math.max(0, i - 1)); return; }
+        if (e.key === "right") { setAddCalcCursor(i => Math.min(addCalcSearch.length, i + 1)); return; }
+        if (e.key === "home") { setAddCalcCursor(0); return; }
+        if (e.key === "end") { setAddCalcCursor(addCalcSearch.length); return; }
+        if (e.key === "backspace") {
+          if (addCalcCursor > 0) {
+            setAddCalcSearch(s => s.slice(0, addCalcCursor - 1) + s.slice(addCalcCursor));
+            setAddCalcCursor(i => i - 1);
+            setModalFocusIdx(0);
+          }
+          return;
+        }
+        if (e.char && e.char.length === 1 && !e.ctrl && !e.meta && e.char !== "/") {
+          setAddCalcSearch(s => s.slice(0, addCalcCursor) + e.char + s.slice(addCalcCursor));
+          setAddCalcCursor(i => i + 1);
+          setModalFocusIdx(0);
         }
         return;
       }
@@ -650,106 +645,112 @@ function App() {
         {/* Left column: tree + calcs stacked */}
         <Box width={treeWidth} flexDirection="column">
           {/* Tree pane */}
-          <Box flexGrow={50} flexShrink={1} flexBasis={0} flexDirection="row">
-            <VLine color={activePane === "tree" ? C.borderFocused : C.bg} />
-            <Box flex={1} flexDirection="column" paddingX={1} paddingTop={1}>
-              <Box flexDirection="row" alignItems="center" gap={1}>
-                <Text bold color={activePane === "tree" ? C.borderFocused : C.dim}>
-                  {activePane === "tree" ? "▸ " : "  "}SECTIONS {flatTree.length}
-                </Text>
-              </Box>
-              <Box height={1} />
-              <ScrollView flex={1}>
-                {flatTree.map(({ node, level }) => {
-                  const isFocused = node.id === focusedSectionId;
-                  const hasChildren = !!node.children?.length;
-                  const toggle = hasChildren ? (expandedIds.has(node.id) ? "▼" : "▶") : " ";
-                  const icon = node.kind === "folder" ? "▤" : "▢";
-                  const indent = "  ".repeat(level);
-                  return (
-                    <Box key={node.id} flexDirection="row" alignItems="center">
-                      <Text
-                        color={isFocused ? C.fg : C.fg}
-                        backgroundColor={isFocused ? C.selectedBg : undefined}
-                        bold={isFocused}
-                      >
-                        {indent}{toggle} {icon} {node.label}
-                      </Text>
-                    </Box>
-                  );
-                })}
-              </ScrollView>
-            </Box>
-          </Box>
-          <HLine />
-          {/* Calcs pane */}
-          <Box flexGrow={50} flexShrink={1} flexBasis={0} flexDirection="row">
-            <VLine color={activePane === "calcs" ? C.borderFocused : C.bg} />
-            <Box flex={1} flexDirection="column" paddingX={1} paddingTop={1}>
-              <Box flexDirection="row" alignItems="center" gap={1}>
-                <Text bold color={activePane === "calcs" ? C.borderFocused : C.dim}>
-                  {activePane === "calcs" ? "▸ " : "  "}
-                </Text>
-                {(["calculation", "files", "images"] as MainTab[]).map((t, i) => {
-                  const active = mainTab === t;
-                  const label = t === "calculation" ? "Calcs" : t === "files" ? "Files" : "Images";
-                  return (
-                    <Text key={t} color={active ? C.tabActive : C.dim}
-                      backgroundColor={active ? C.headerBg : undefined} bold={active}>
-                      {` ${i + 1} ${label} `}
+          <Box
+            flexGrow={50}
+            flexShrink={1}
+            flexBasis={0}
+            flexDirection="column"
+            borderStyle="round"
+            borderColor={activePane === "tree" ? C.borderFocused : C.border}
+            paddingX={1}
+          >
+            <Text bold color={activePane === "tree" ? C.borderFocused : C.dim}>
+              SECTIONS  <Text dim color={C.dim}>{flatTree.length}</Text>
+            </Text>
+            <Box height={1} />
+            <ScrollView flex={1}>
+              {flatTree.map(({ node, level }) => {
+                const isFocused = node.id === focusedSectionId;
+                const hasChildren = !!node.children?.length;
+                const toggle = hasChildren ? (expandedIds.has(node.id) ? "▼" : "▶") : " ";
+                const icon = node.kind === "folder" ? "▤" : "▢";
+                const indent = "  ".repeat(level);
+                return (
+                  <Box key={node.id} flexDirection="row" alignItems="center">
+                    <Text
+                      color={C.fg}
+                      backgroundColor={isFocused ? C.selectedBg : undefined}
+                      bold={isFocused}
+                    >
+                      {indent}{toggle} {icon} {node.label}
                     </Text>
-                  );
-                })}
-              </Box>
-              <Box height={1} />
-              {mainTab === "calculation" ? (
-                <ScrollView flex={1}>
-                  {calcList.length === 0
-                    ? <Text dim color={C.dim}>no calcs · press <Text color={C.fg}>a</Text> to add</Text>
-                    : calcList.map((calc, i) => {
-                        const active = i === focusedCalcIdx;
-                        return (
-                          <Box key={calc.calc_name} flexDirection="row" gap={1} alignItems="center">
-                            <Text color={active ? C.accent : C.dim}>{active ? "●" : "○"}</Text>
-                            <Text color={C.fg} backgroundColor={active ? C.selectedBg : undefined} bold={active}>
-                              {calc.display_name}
-                            </Text>
-                          </Box>
-                        );
-                      })
-                  }
-                </ScrollView>
-              ) : mainTab === "files" ? (
-                <ScrollView flex={1}>
-                  {MOCK_FILES.map(f => (
-                    <Box key={f.filename} flexDirection="row" gap={2}>
-                      <Text color={C.fg}>{f.filename}</Text>
-                      <Box flex={1} />
-                      <Text dim color={C.dim}>{f.size_kb.toFixed(1)} KB</Text>
-                    </Box>
-                  ))}
-                </ScrollView>
-              ) : (
-                <ScrollView flex={1}>
-                  {MOCK_IMAGES.map(img => (
-                    <Box key={img.filename} flexDirection="row" gap={1}>
-                      <Text color={C.fg}>▢ {img.filename}</Text>
-                      <Box flex={1} />
-                      <Text dim color={C.dim}>{img.size_kb.toFixed(1)} KB</Text>
-                    </Box>
-                  ))}
-                </ScrollView>
-              )}
+                  </Box>
+                );
+              })}
+            </ScrollView>
+          </Box>
+          {/* Calcs pane */}
+          <Box
+            flexGrow={50}
+            flexShrink={1}
+            flexBasis={0}
+            flexDirection="column"
+            borderStyle="round"
+            borderColor={activePane === "calcs" ? C.borderFocused : C.border}
+            paddingX={1}
+          >
+            <Box flexDirection="row" alignItems="center" gap={1}>
+              {(["calculation", "files", "images"] as MainTab[]).map((t, i) => {
+                const active = mainTab === t;
+                const label = t === "calculation" ? "Calcs" : t === "files" ? "Files" : "Images";
+                return (
+                  <Text key={t} color={active ? C.tabActive : C.dim}
+                    backgroundColor={active ? C.headerBg : undefined} bold={active}>
+                    {` ${i + 1} ${label} `}
+                  </Text>
+                );
+              })}
             </Box>
+            <Box height={1} />
+            {mainTab === "calculation" ? (
+              <ScrollView flex={1}>
+                {calcList.length === 0
+                  ? <Text dim color={C.dim}>no calcs · press <Text color={C.fg}>a</Text> to add</Text>
+                  : calcList.map((calc, i) => {
+                      const active = i === focusedCalcIdx;
+                      return (
+                        <Box key={calc.calc_name} flexDirection="row" gap={1} alignItems="center">
+                          <Text color={active ? C.accent : C.dim}>{active ? "●" : "○"}</Text>
+                          <Text color={C.fg} backgroundColor={active ? C.selectedBg : undefined} bold={active}>
+                            {calc.display_name}
+                          </Text>
+                        </Box>
+                      );
+                    })
+                }
+              </ScrollView>
+            ) : mainTab === "files" ? (
+              <ScrollView flex={1}>
+                {MOCK_FILES.map(f => (
+                  <Box key={f.filename} flexDirection="row" gap={2}>
+                    <Text color={C.fg}>{f.filename}</Text>
+                    <Box flex={1} />
+                    <Text dim color={C.dim}>{f.size_kb.toFixed(1)} KB</Text>
+                  </Box>
+                ))}
+              </ScrollView>
+            ) : (
+              <ScrollView flex={1}>
+                {MOCK_IMAGES.map(img => (
+                  <Box key={img.filename} flexDirection="row" gap={1}>
+                    <Text color={C.fg}>▢ {img.filename}</Text>
+                    <Box flex={1} />
+                    <Text dim color={C.dim}>{img.size_kb.toFixed(1)} KB</Text>
+                  </Box>
+                ))}
+              </ScrollView>
+            )}
           </Box>
         </Box>
 
-        <VLine />
-
         {/* Detail pane */}
-        <Box flex={1} flexDirection="row">
-          <VLine color={activePane === "detail" ? C.borderFocused : C.bg} />
-          <Box flex={1} flexDirection="column" paddingX={1} paddingTop={1}>
+        <Box
+          flex={1}
+          flexDirection="column"
+          borderStyle="round"
+          borderColor={activePane === "detail" ? C.borderFocused : C.border}
+          paddingX={1}
+        >
             <Box flexDirection="row" gap={2} alignItems="center">
               <Text bold color={activePane === "detail" ? C.borderFocused : C.dim}>
                 {activePane === "detail" ? "▸" : " "}
@@ -784,7 +785,6 @@ function App() {
                 editingField={editingInputField}
                 editValue={editValue}
                 cursorIdx={cursorIdx}
-                blink={blink}
                 isDetailFocused={activePane === "detail"}
               />
             ) : subTab === "json" ? (
@@ -817,7 +817,6 @@ function App() {
                 ))}
               </ScrollView>
             )}
-          </Box>
         </Box>
       </Box>
 
@@ -874,7 +873,7 @@ function App() {
           <Box height={1} />
           <Text dim color={C.dim}>Project name:</Text>
           <Box flexDirection="row" borderStyle="single" borderColor={C.borderFocused} paddingX={1} marginTop={1}>
-            <EditableText value={modalInput} cursorIdx={modalCursor} blink={blink} focused />
+            <EditableText value={modalInput} cursorIdx={modalCursor} focused />
           </Box>
           <Box height={1} />
           <Text dim color={C.dim}>Enter confirm · Esc cancel</Text>
@@ -911,8 +910,7 @@ function App() {
           <Text bold color={C.borderFocused}>Add Calculation</Text>
           <Box height={1} />
           <Box flexDirection="row" borderStyle="single" borderColor={C.borderFocused} paddingX={1}>
-            <Text dim color={C.dim}>/ </Text>
-            <Text color={C.fg}>{addCalcSearch}</Text>
+            <EditableText value={addCalcSearch} cursorIdx={addCalcCursor} focused />
           </Box>
           <Box height={1} />
           {filteredLibrary.length === 0 ? (
@@ -972,7 +970,7 @@ type IORow = { field: string; label: string; value: string; units: string; isEdi
 
 function IOView({
   inputRows, outputRows, focusedSide, focusedInputIdx, focusedOutputIdx,
-  editingField, editValue, cursorIdx, blink, isDetailFocused,
+  editingField, editValue, cursorIdx, isDetailFocused,
 }: {
   inputRows: IORow[];
   outputRows: IORow[];
@@ -982,7 +980,6 @@ function IOView({
   editingField: string | null;
   editValue: string;
   cursorIdx: number;
-  blink: boolean;
   isDetailFocused: boolean;
 }) {
   return (
@@ -1008,7 +1005,7 @@ function IOView({
                   </Box>
                   <Box width={12}>
                     {editing ? (
-                      <EditableText value={editValue} cursorIdx={cursorIdx} blink={blink} focused />
+                      <EditableText value={editValue} cursorIdx={cursorIdx} focused />
                     ) : (
                       <Text color={focused ? C.tabActive : C.fg}>{row.value}</Text>
                     )}
