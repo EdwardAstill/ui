@@ -1,57 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
-import { TerminalTheme } from "./showcase/themes/Terminal";
-import { GlassTheme } from "./showcase/themes/Glass";
-import { NeobrutalismTheme } from "./showcase/themes/Neobrutalism";
-import { CyberpunkTheme } from "./showcase/themes/Cyberpunk";
-import { PastelTheme } from "./showcase/themes/Pastel";
-import { Y2KTheme } from "./showcase/themes/Y2K";
-import { SwissTheme } from "./showcase/themes/Swiss";
-import { CatppuccinTheme } from "./showcase/themes/Catppuccin";
-import { RetroOSTheme } from "./showcase/themes/RetroOS";
-import { Neobrutalism2Theme } from "./showcase/themes/Neobrutalism2";
-import { ProductivityTheme } from "./showcase/themes/Productivity";
-import { iOSTheme } from "./showcase/themes/iOS";
-import { Terminal2Theme } from "./showcase/themes/Terminal2";
-import { MusicPlayerTheme } from "./showcase/themes/MusicPlayer";
-import { ClaymorphismTheme } from "./showcase/themes/Claymorphism";
-import { VaporwaveTheme } from "./showcase/themes/Vaporwave";
-import { NeumorphismTheme } from "./showcase/themes/Neumorphism";
-import { ShadcnDarkTheme } from "./showcase/themes/ShadcnDark";
-import { ModernRetroTheme } from "./showcase/themes/ModernRetro";
-import { HermesTheme } from "./showcase/themes/Hermes";
-import { EngProTheme } from "./showcase/themes/EngPro";
-import { DockTheme } from "./showcase/themes/Dock";
-import { ClaudePackTheme } from "./showcase/themes/ClaudePack";
-import type { ThemeDefinition, LayoutType } from "./showcase/themes/types";
+import { themes } from "./showcase/themes";
+import type { LayoutType } from "./showcase/themes";
 import { StyleGuide, styleGuideCSS } from "./style/StyleGuide";
-
-const themes: ThemeDefinition[] = [
-  TerminalTheme,
-  Terminal2Theme,
-  GlassTheme,
-  NeobrutalismTheme,
-  CyberpunkTheme,
-  PastelTheme,
-  Y2KTheme,
-  SwissTheme,
-  CatppuccinTheme,
-  RetroOSTheme,
-  Neobrutalism2Theme,
-  ProductivityTheme,
-  iOSTheme,
-  MusicPlayerTheme,
-  ClaymorphismTheme,
-  VaporwaveTheme,
-  NeumorphismTheme,
-  ShadcnDarkTheme,
-  ModernRetroTheme,
-  HermesTheme,
-  EngProTheme,
-  DockTheme,
-  ClaudePackTheme,
-];
+import { themeEnhancementsCSS } from "./style/themeEnhancements";
+import { VizPanel } from "./viz/App";
+import { vizStyles } from "./viz/primitives";
 
 const globalBaseStyles = `
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -173,13 +128,15 @@ const globalBaseStyles = `
   }
 `;
 
-type ViewMode = "showcase" | "style";
+type ViewMode = "showcase" | "style" | "viz";
 
 function readInitialMode(): ViewMode {
   if (typeof window === "undefined") return "showcase";
   const params = new URLSearchParams(window.location.search);
   const m = params.get("mode");
-  return m === "style" ? "style" : "showcase";
+  if (m === "style") return "style";
+  if (m === "viz") return "viz";
+  return "showcase";
 }
 
 function App() {
@@ -200,6 +157,7 @@ function App() {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     if (viewMode === "style") url.searchParams.set("mode", "style");
+    else if (viewMode === "viz") url.searchParams.set("mode", "viz");
     else url.searchParams.delete("mode");
     window.history.replaceState(null, "", url.toString());
   }, [viewMode]);
@@ -225,7 +183,7 @@ function App() {
     // 1. Global style element: @imports + base styles + style guide CSS
     const globalEl = document.createElement("style");
     globalEl.id = "theme-styles-global";
-    globalEl.textContent = importLines.join("\n") + "\n" + globalBaseStyles + "\n" + styleGuideCSS;
+    globalEl.textContent = importLines.join("\n") + "\n" + globalBaseStyles + "\n" + styleGuideCSS + "\n" + vizStyles;
     document.head.appendChild(globalEl);
 
     // 2. One <style> per theme (no @import lines — already hoisted)
@@ -240,6 +198,11 @@ function App() {
       el.textContent = themeCSS;
       document.head.appendChild(el);
     });
+
+    const enhancementEl = document.createElement("style");
+    enhancementEl.id = "theme-style-enhancements";
+    enhancementEl.textContent = themeEnhancementsCSS;
+    document.head.appendChild(enhancementEl);
   }, []);
 
   const currentColors = (activePalette === "Default"
@@ -260,7 +223,7 @@ function App() {
           <h1>UI Styles</h1>
           <p>{activeTheme.description || "Click to transform"}</p>
           <div style={{ display: "flex", gap: 4, marginTop: 12 }}>
-            {(["showcase", "style"] as ViewMode[]).map(m => (
+            {(["showcase", "style", "viz"] as ViewMode[]).map(m => (
               <button
                 key={m}
                 onClick={() => setViewMode(m)}
@@ -278,7 +241,7 @@ function App() {
                   fontWeight: 600,
                 }}
               >
-                {m === "showcase" ? "Showcase" : "Style guide"}
+                {m === "showcase" ? "Themes" : m === "style" ? "Style" : "Viz"}
               </button>
             ))}
           </div>
@@ -341,6 +304,8 @@ function App() {
       <main className={`main-panel ${viewMode === "style" ? "main-panel-style" : ""}`}>
         {viewMode === "style" ? (
           <StyleGuide theme={activeTheme} colors={currentColors} />
+        ) : viewMode === "viz" ? (
+          <VizPanel />
         ) : (
           <activeTheme.Showcase layout={activeLayout} colors={currentColors} />
         )}

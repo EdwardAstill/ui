@@ -1,0 +1,6 @@
+01.png	https://i.pinimg.com/originals/08/1a/f1/081af13d53a3f9e7af43a49686ca34b5.png
+02.png	https://mew-1350584998.cos.ap-shanghai.myqcloud.com/blog/design-wiki/swiss-graphic-design-typography.png?imageView2/format/webp
+03.jpg	https://dspncdn.com/a1/media/692x/3e/94/3b/3e943bcfb7341a786b4644ad15af9c23.jpg
+04.png	https://i.pinimg.com/originals/34/77/30/34773047c02689c3ddd4f0f4edda231a.png
+05.jpg	https://mir-s3-cdn-cf.behance.net/project_modules/max_1200/18ca10101382537.5f1dc6f1ce945.jpg
+06.jpg	https://weandthecolor.com/wp-content/uploads/2021/12/Swiss-style-poster-template-with-creative-typography-in-two-styles-for-Adobe-Illustrator.jpg

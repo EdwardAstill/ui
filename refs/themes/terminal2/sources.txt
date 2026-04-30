@@ -1,0 +1,6 @@
+01.png	https://www.kali.org/blog/kali-linux-2022-4-release/images/gnome-43.png
+02.png	https://www.kali.org/blog/kali-linux-2021-1-release/images/kali-terminals.png
+03.jpg	http://cdn.osxdaily.com/wp-content/uploads/2019/01/edex-ui-mac-3.jpg
+04.jpeg	https://d2nzy1qhita6w.cloudfront.net/media/wysiwyg/ethical-hacking-with-kali-linux.jpeg
+05.png	https://www.kali.org/blog/kali-linux-2020-2-release/images/release-2020.2-kali-kde-dark.png
+06.jpg	https://static1.howtogeekimages.com/wordpress/wp-content/uploads/2024/06/several-linux-terminals.jpg

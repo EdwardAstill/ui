@@ -1,0 +1,6 @@
+01.png	https://static0.howtogeekimages.com/wordpress/wp-content/uploads/2025/10/the-windows-xp-user-interface-with-an-open-window.png?q=70
+02.png	https://s3-alpha.figma.com/hub/file/2272948670752091129/214bc8c9-2c54-4588-a32f-b45acff8767a-cover.png
+03.jpg	https://i.redd.it/xvksk31u5p391.jpg
+04.jpg	https://o.quizlet.com/KBymQGZNNXBjAOagTHOodw_b.jpg
+05.png	https://static1.xdaimages.com/wordpress/wp-content/uploads/wm/2023/10/windows-xp-3.png
+06.jpg	https://img.freepik.com/free-vector/old-program-composition-with-set-computer-windows-retro-desktop-with-icons-folders-buttons-vector-illustration_1284-78282.jpg?semt=ais_hybrid

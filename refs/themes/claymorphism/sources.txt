@@ -1,0 +1,6 @@
+01.jpg	https://thumbs.dreamstime.com/b/d-claymorphic-fintech-dashboard-interface-pastel-charts-buttons-modern-claymorphism-style-soft-ui-elements-green-beige-370774379.jpg
+02.jpg	https://thumbs.dreamstime.com/b/d-claymorphic-fintech-dashboard-interface-pastel-charts-buttons-modern-claymorphism-style-soft-ui-elements-green-beige-370774387.jpg
+03.jpg	https://thumbs.dreamstime.com/b/d-claymorphic-fintech-dashboard-interface-pastel-charts-buttons-modern-claymorphism-style-soft-ui-elements-green-beige-370774383.jpg
+04.png	https://res.cloudinary.com/indysigner/image/fetch/f_auto,q_80/w_400/https://archive.smashing.media/assets/344dbf88-fdf9-42bb-adb4-46f01eedd629/1b617c0e-e1b6-46e3-af45-d429f2ecd8c8/11-claymorphism-new-design-trend.png
+05.jpg	https://thumbs.dreamstime.com/b/d-claymorphic-fintech-dashboard-interface-pastel-charts-buttons-modern-claymorphism-style-soft-ui-elements-green-beige-370774372.jpg
+06.png	https://s3-alpha.figma.com/hub/file/1480725005/25b4a869-bec2-4a8f-9642-2b5fe53dfae7-cover.png

@@ -1,0 +1,6 @@
+01.jpg	https://static.vecteezy.com/system/resources/previews/023/442/928/original/digital-business-agency-based-landing-page-with-space-for-product-on-teal-background-vector.jpg
+02.jpg	https://i.pinimg.com/736x/b6/ec/9f/b6ec9f42f68eb91c3402f0aa0bee1851.jpg
+03.png	https://png.pngtree.com/template/20220403/ourlarge/pngtree-gradient-geometric-teal-web-landing-page-template-image_966023.jpg
+04.jpg	https://mir-s3-cdn-cf.behance.net/project_modules/fs/fb63c7127194915.613ce87403778.jpg
+05.jpg	https://mir-s3-cdn-cf.behance.net/project_modules/max_1200/4c54c2127194915.613ce5104e21d.jpg
+06.jpg	https://img.freepik.com/free-vector/cosmetic-landing-page-template_23-2148994910.jpg?t=st=1720090672~exp=1720094272~hmac=86ce16aa36eb92ea0a1cbe40cb1a8ba028895aa07e550c867d1e5491ac77520d

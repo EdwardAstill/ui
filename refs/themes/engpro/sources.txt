@@ -1,0 +1,6 @@
+01.png	https://assets.linearb.io/image/upload/v1732649903/Group_6928_14e03d2d2a.png
+02.png	https://assets.linearb.io/image/upload/v1720000000/Engineering_Metrics_Dashboard_03236e7e2d.png
+03.png	https://assets.linearb.io/image/upload/v1720000000/Automation_original_4363311268.png
+04.png	https://assets.software.com/readme/code-time/vscode/bottlenecks-take-action.png
+05.png	https://assets.software.com/readme/code-time/vscode/collaborate-more-efficiently-2.7.3.png
+06.jpg	https://www.slidegeeks.com/media/catalog/product/cache/1280x720/S/o/Software_Engineering_Performance_Metrics_Dashboard_To_Improve_Results_Infographics_PDF_Slide_1.jpg

@@ -1,0 +1,6 @@
+01.jpg	https://thumbs.dreamstime.com/b/elegant-floral-mobile-app-design-showcasing-user-interface-elements-pastel-colors-beautifully-designed-features-graphics-358111223.jpg
+02.jpg	https://thumbs.dreamstime.com/b/modern-mobile-app-interface-design-concept-soft-pastel-colors-generativeai-image-showcases-modern-mobile-app-interface-385093503.jpg?w=768
+03.png	https://i.pinimg.com/originals/b4/af/2d/b4af2d1a255609d50d097323260ee721.png
+04.jpg	https://thumbs.dreamstime.com/b/abstract-ui-design-pastel-gradients-featuring-smartphone-interface-floating-widgets-conveying-futuristic-tech-digital-390469280.jpg?w=768
+05.jpg	https://img.freepik.com/premium-photo/pastel-retro-layout-variety-streamer-with-soft-pastels-8-bit-pixel-game-interface-designa_1020495-676438.jpg
+06.jpg	https://as1.ftcdn.net/jpg/12/00/35/14/1000_F_1200351414_Mir1o7Iv5rnYO11jCLrMk7s1mZSIdxsB.jpg

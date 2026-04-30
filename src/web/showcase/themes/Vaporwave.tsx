@@ -1002,13 +1002,14 @@ const VaporwaveShowcase: FC<{ layout?: string; colors?: any }> = ({ layout, colo
   const c = colors || defaultColors;
 
   const cardStyle: React.CSSProperties = {
-    background: "rgba(26, 5, 51, 0.85)",
-    border: "1px solid rgba(185,103,255,0.35)",
+    background: "linear-gradient(180deg, rgba(38, 7, 76, 0.9), rgba(13, 2, 33, 0.86))",
+    border: "1px solid rgba(255,113,206,0.34)",
     borderRadius: "4px",
     padding: "20px",
     position: "relative",
     overflow: "hidden",
     backdropFilter: "blur(10px)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08), 0 18px 46px rgba(6,0,22,0.35)",
   };
 
   const glowLine: React.CSSProperties = {
@@ -1024,7 +1025,7 @@ const VaporwaveShowcase: FC<{ layout?: string; colors?: any }> = ({ layout, colo
 
   return (
     <div style={{
-      background: "#0d0221",
+      background: "radial-gradient(ellipse at 50% -12%, rgba(255,113,206,0.24), transparent 42%), radial-gradient(ellipse at 82% 18%, rgba(1,205,254,0.13), transparent 34%), linear-gradient(180deg, #080016 0%, #0d0221 42%, #1a0533 100%)",
       minHeight: "100%",
       color: "#f0e6ff",
       fontFamily: "'Inter', sans-serif",
@@ -1038,7 +1039,23 @@ const VaporwaveShowcase: FC<{ layout?: string; colors?: any }> = ({ layout, colo
       }} />
 
       {/* ── Perspective Grid Stage ── */}
-      <div style={{ position: "relative", height: "200px", overflow: "hidden", background: "linear-gradient(180deg, #0d0221 0%, #1a0533 60%, #2d0050 100%)" }}>
+      <div style={{ position: "relative", height: "220px", overflow: "hidden", background: "linear-gradient(180deg, #050012 0%, #16052e 52%, #2d0050 100%)", borderBottom: "1px solid rgba(255,113,206,0.42)", boxShadow: "inset 0 -1px 0 rgba(1,205,254,0.35), 0 20px 70px rgba(255,113,206,0.16)" }}>
+        <div style={{
+          ...pixelFont,
+          position: "absolute", top: "14px", left: "18px", zIndex: 4,
+          color: "#01cdfe", fontSize: "15px", letterSpacing: "0.24em",
+          textShadow: "0 0 10px rgba(1,205,254,0.85)",
+        }}>
+          REC 1984  SP
+        </div>
+        <div style={{
+          ...pixelFont,
+          position: "absolute", top: "14px", right: "18px", zIndex: 4,
+          color: "#ff71ce", fontSize: "15px", letterSpacing: "0.24em",
+          textShadow: "0 0 10px rgba(255,113,206,0.85)",
+        }}>
+          TRACKING ▌▌▌
+        </div>
         {/* Sky gradient */}
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "50%", background: "linear-gradient(180deg, #0d0221 0%, #1a0533 70%, #3d0066 100%)" }} />
         {/* Grid floor */}
@@ -1334,22 +1351,22 @@ const VaporwaveShowcase: FC<{ layout?: string; colors?: any }> = ({ layout, colo
 /* ─────────────────────────── Export ─────────────────────────── */
 
 const defaultColors: ColorPalette = {
-  bg:        "#1a0533",
-  sidebarBg: "#0d0020",
-  border:    "#ff2d78",
-  text:      "#e0d0ff",
-  textMuted: "#b090d0",
-  accent:    "#ff2d78",
-  accent2:   "#00e5ff",
-  cardBg:    "rgba(30,0,60,0.8)",
-  inputBg:   "rgba(40,0,80,0.6)",
+  bg:        "#0d0221",
+  sidebarBg: "#120330",
+  border:    "#b967ff",
+  text:      "#f0e6ff",
+  textMuted: "#9d7bc8",
+  accent:    "#ff71ce",
+  accent2:   "#01cdfe",
+  cardBg:    "rgba(26,5,51,0.85)",
+  inputBg:   "rgba(13,2,33,0.9)",
 };
 
 export const VaporwaveTheme: ThemeDefinition = {
   id: "vaporwave",
   name: "Vaporwave",
   emoji: "🌴",
-  description: "80s/90s aesthetic with deep purple gradients, neon pink/cyan glow, perspective grid floor, retro sun, and CRT scanlines.",
+  description: "80s/90s dream-machine aesthetic with deep violet night, neon pink/cyan chrome, VHS tracking, perspective grids, retro sun, and CRT scanlines.",
   colors: defaultColors,
   palettes: {
     "Default": defaultColors,

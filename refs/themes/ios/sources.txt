@@ -1,0 +1,6 @@
+01.jpg	https://1stwebdesigner.com/wp-content/uploads/2017/10/ios-app-design-layout-07.jpg
+02.png	https://assets.justinmind.com/wp-content/uploads/2024/10/ios-app-design-self-care.png
+03.png	https://assets.justinmind.com/wp-content/uploads/2024/10/ios-app-design-to-do-list..png
+04.jpg	https://images.ctfassets.net/ooa29xqb8tix/6Dya8w9IamJPpc80hQIJ3Q/2543ab28598f7702ef71b56809530a3d/Intro_to_iOS_Design_image_1.jpg
+05.webp	https://uizard.io/blog/content/images/size/w1200/2023/09/BLOG_230929_IOSAppDesign.webp
+06.png	https://assets.justinmind.com/wp-content/uploads/2020/09/ios-app-design-task-planner.png

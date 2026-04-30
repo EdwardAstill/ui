@@ -1,0 +1,6 @@
+01.jpg	https://static.vecteezy.com/system/resources/previews/004/305/751/large_2x/music-player-concept-neumorphic-templates-set-play-songs-equalizer-settings-playlist-navigation-elements-ui-ux-gui-screens-for-responsive-mobile-app-design-kit-in-neumorphism-style-vector.jpg
+02.jpg	https://static.vecteezy.com/system/resources/previews/004/305/701/large_2x/music-player-concept-neumorphic-templates-set-player-interface-with-buttons-song-list-sound-setting-playlists-ui-ux-gui-screens-for-responsive-mobile-app-design-kit-in-neumorphism-style-vector.jpg
+03.jpg	https://static.vecteezy.com/system/resources/previews/023/541/552/large_2x/neomorphic-music-player-interface-ui-app-screen-vector.jpg
+04.png	https://mir-s3-cdn-cf.behance.net/project_modules/fs/bf9954154217663.633dee918b9e3.png
+05.jpg	https://i.pinimg.com/originals/17/4a/f9/174af9be02132d41578f3a21ba7e4ecb.jpg
+06.jpg	https://freebiesui.com/wp-content/uploads/2018/08/music-player-app-design-ui-kit-adobe-xd.jpg

@@ -1,0 +1,6 @@
+01.webp	https://cdn.prod.website-files.com/6889473510b50328dbb70ae6/6914d00328fde4187dc9cdbe_claude-code_vs-code_preview.webp
+02.png	https://subicura.com/assets/article_images/2025-09-08-ai-coding/claude-ide.png
+03.jpg	https://www.bgr.com/img/gallery/claude-can-now-create-pdf-word-and-excel-files-for-you/l-intro-1757419973.jpg
+04.webp	https://cdn.prod.website-files.com/6889473510b50328dbb70ae6/69176145ce72e72ddedd5528_claude-code_use-web-mobile.webp
+05.jpg	https://www.claudeide.net/og.jpg
+06.webp	https://cdn.analyticsvidhya.com/wp-content/uploads/2025/07/Claude-Code-interface.webp

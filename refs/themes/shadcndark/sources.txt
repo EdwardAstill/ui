@@ -1,0 +1,6 @@
+01.png	https://cdn.shadcnstudio.com/ss-assets/landing-page/template-page/dashboard/default-dashboard-1-dark.png
+02.webp	https://next.jqueryscript.net/wp-content/uploads/2025/08/admin-dashboard-shadcn-ui.webp
+03.png	https://cdn.allshadcn.com/as-assets/preview-images/shadcnadmindashboard.png
+04.png	https://github.com/faturputro/vue-shadcn-dashboard/raw/main/src/assets/images/screenshot-dark.png
+05.png	https://shadcn-svelte.vercel.app/examples/dashboard-dark.png
+06.png	https://tailkits.com/_ipx/_/shadcndash-2.png
