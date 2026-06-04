@@ -1,7 +1,20 @@
+# Dependencies
 node_modules/
+
+# OS/editor noise
 .DS_Store
+
+# Build/typecheck outputs
+dist/
 *.tsbuildinfo
+
+# Generated code maps and local agent/runtime state
 .code-map/
+.pi-lens/
 .worktrees/
 .warden/runtime/
-.pi-lens/
+
+# Generated/downloaded design reference assets and local screenshots
+refs/themes/
+inspiration/
+my-apps/
