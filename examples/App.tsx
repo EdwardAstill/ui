@@ -26,7 +26,6 @@ import {
 	PaneShell,
 	Panel,
 	PdfViewer,
-	Result,
 	SegmentedGroup,
 	Select,
 	Slider,
@@ -43,7 +42,6 @@ import {
 	Toolbar,
 	TopBar,
 	Tree,
-	TreeNav,
 	Workspace,
 	type ContextMenuItem,
 	type FreeformCanvasItem,
@@ -137,6 +135,7 @@ export function App() {
 	const [sidebarExpanded, setSidebarExpanded] = useState<Set<string>>(
 		() => new Set(["projects", "docs"]),
 	);
+	const [sidebarSelected, setSidebarSelected] = useState<string | null>("docs");
 	const [lightboxOpen, setLightboxOpen] = useState(false);
 	const [paletteOpen, setPaletteOpen] = useState(false);
 	const ctxMenuItems: ContextMenuItem[] = [
@@ -413,12 +412,11 @@ export function App() {
 									<code>4 panes</code>
 								</div>
 							</div>
-							<Result
-								label="Reference fit"
-								value={0.92}
-								status="ok"
-								ratio="bun.com-inspired"
-							/>
+							<div className={styles.heroStatusRow}>
+								<span>Reference fit</span>
+								<strong>0.92</strong>
+								<StatusBadge variant="ok" label="bun.com-inspired" />
+							</div>
 							<Toolbar>
 								<StatusBadge variant="info" label={theme} size="control" />
 								<Button size="sm" variant="primary">
@@ -517,6 +515,47 @@ export function App() {
 
 					<DocSection title="Controls">
 						<div className={styles.grid}>
+							<ComponentBlock
+								name="Style foundation"
+								source="src/styles.css"
+								meta="core surfaces, text scale, borders, focus ring, and accent tokens used by basic controls"
+							>
+								<div className={styles.foundationGrid}>
+									<div className={styles.foundationCard}>
+										<span className={styles.foundationLabel}>Type</span>
+										<span className={styles.foundationTextLarge}>
+											Large control label
+										</span>
+										<span className={styles.foundationTextBody}>
+											Muted helper copy uses the same token scale as fields and
+											component metadata.
+										</span>
+									</div>
+									<div className={styles.foundationCardStrong}>
+										<span className={styles.foundationLabel}>Surfaces</span>
+										<div className={styles.foundationSwatches}>
+											<span className={styles.foundationSwatchSurface} />
+											<span className={styles.foundationSwatchPanel} />
+											<span className={styles.foundationSwatchElevated} />
+											<span className={styles.foundationSwatchAccent} />
+										</div>
+										<span className={styles.foundationTextBody}>
+											Surface, panel, elevated, accent.
+										</span>
+									</div>
+									<div className={styles.foundationCard}>
+										<span className={styles.foundationLabel}>Focus</span>
+										<span className={styles.foundationFocusDemo}>
+											focus-visible
+										</span>
+										<span className={styles.foundationTextBody}>
+											Control states are token-driven rather than
+											component-local colour choices.
+										</span>
+									</div>
+								</div>
+							</ComponentBlock>
+
 							<ComponentBlock
 								name="<Button>"
 								source="src/components/Button.tsx"
@@ -677,6 +716,17 @@ export function App() {
 							meta="controlled range slider; sizes: sm | md"
 						>
 							<div className={styles.sliderSpecimen}>
+								<div className={styles.sliderReadout}>
+									<div className={styles.sliderReadoutTrack} aria-hidden="true">
+										<div
+											className={styles.sliderReadoutFill}
+											style={{ width: `${sliderValue}%` }}
+										/>
+									</div>
+									<span className={styles.sliderReadoutValue}>
+										{sliderValue}%
+									</span>
+								</div>
 								<Slider
 									value={sliderValue}
 									onChange={setSliderValue}
@@ -876,35 +926,6 @@ export function App() {
 							</ComponentBlock>
 
 							<ComponentBlock
-								name="<Result>"
-								source="src/components/Result.tsx"
-								meta="label, value, unit, ratio, note, status"
-							>
-								<div className={styles.resultStack}>
-									<Result
-										label="Result ok"
-										value={0.72}
-										status="ok"
-										ratio="0.72 / 1.00"
-									/>
-									<Result
-										label="Result warn"
-										value={0.94}
-										status="warn"
-										ratio="0.94 / 1.00"
-										note="note prop"
-									/>
-									<Result
-										label="Result err"
-										value="ERR"
-										status="err"
-										ratio="1.08 / 1.00"
-									/>
-									<Result label="Result none" value={120} unit="unit" />
-								</div>
-							</ComponentBlock>
-
-							<ComponentBlock
 								name="<LogView>"
 								source="src/components/LogView.tsx"
 								meta="streamed monospace lines; wrapLines optional"
@@ -919,7 +940,7 @@ export function App() {
 							<ComponentBlock
 								name="<Tree>"
 								source="src/components/Tree.tsx"
-								meta="controlled filesystem mockup with drag-to-move"
+								meta="controlled hierarchy for files, navigation, selection, links, and drag-to-move"
 							>
 								<div
 									className={styles.treeVisualPanel}
@@ -981,15 +1002,8 @@ export function App() {
 										aria-label="Filesystem Tree specimen"
 									/>
 								</div>
-							</ComponentBlock>
-
-							<ComponentBlock
-								name="<TreeNav>"
-								source="src/components/TreeNav.tsx"
-								meta="expandable navigation tree with link support; controlled or uncontrolled expansion"
-							>
 								<div className={styles.treeNavFrame}>
-									<TreeNav
+									<Tree
 										nodes={[
 											{
 												id: "projects",
@@ -1007,7 +1021,6 @@ export function App() {
 											{
 												id: "docs",
 												label: "Documentation",
-												active: true,
 												children: [
 													{ id: "api", label: "API Reference", href: "#" },
 													{ id: "guide", label: "Guide", href: "#" },
@@ -1015,16 +1028,14 @@ export function App() {
 											},
 											{ id: "settings", label: "Settings" },
 										]}
-										expandedIds={sidebarExpanded}
-										onToggle={(id) =>
-											setSidebarExpanded((prev) => {
-												const next = new Set(prev);
-												if (next.has(id)) next.delete(id);
-												else next.add(id);
-												return next;
-											})
-										}
-										onNodeClick={(node) => node.href && setNavOpen(true)}
+										expanded={sidebarExpanded}
+										onExpandedChange={setSidebarExpanded}
+										selected={sidebarSelected}
+										onSelect={(id, node) => {
+											setSidebarSelected(id);
+											if (node.href !== undefined) setNavOpen(true);
+										}}
+										aria-label="Navigation Tree specimen"
 									/>
 								</div>
 							</ComponentBlock>

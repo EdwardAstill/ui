@@ -22,7 +22,7 @@ analysis](./handoff.md) have been implemented in `ui`. The existing
 | Inline tag/label with remove button | P2 | `TagPill` | `src/components/TagPill.tsx` |
 | Full-screen image viewer overlay | P2 | `Lightbox` | `src/components/Lightbox.tsx` |
 | Search-as-you-type overlay (Cmd-K) | P2 | `CommandPalette` | `src/components/CommandPalette.tsx` |
-| Expandable navigation tree | P2 | `TreeNav` | `src/components/TreeNav.tsx` |
+| Expandable navigation tree | P2 | `Tree` | `src/components/Tree.tsx` |
 | Right-click context menu | — | `ContextMenu` | `src/components/ContextMenu.tsx` |
 
 All components:
@@ -103,7 +103,7 @@ target different DOM scopes with different variable names.
 | `.tag-pill` | `<TagPill>` | `ui` |
 | `.lightbox` | `<Lightbox>` | `ui` |
 | `.site-search-palette` | `<CommandPalette>` | `ui` |
-| `.sidebar-nav` | `<TreeNav>` | `ui` |
+| `.sidebar-nav` | `<Tree>` | `ui` |
 | `.context-menu` | `<ContextMenu>` | `ui` |
 | `.settings__switch` | `<Toggle>` | `ui` |
 | Theme picker overlay | `<Dialog>` + custom grid | `ui` |
@@ -219,26 +219,22 @@ function SearchOverlay({ open, onClose, searchResults, onSelect }) {
 }
 ```
 
-### TreeNav (sidebar navigation)
+### Tree (sidebar navigation)
 
 ```tsx
-import { TreeNav } from "ui";
+import { Tree, type TreeNode } from "ui";
 
 function SidebarNav({ nodes, activeId, onNavigate }) {
   const [expanded, setExpanded] = useState(new Set(["docs"]));
 
   return (
-    <TreeNav
-      nodes={nodes.map((n) => ({ ...n, active: n.id === activeId }))}
-      expandedIds={expanded}
-      onToggle={(id) => {
-        setExpanded((prev) => {
-          const next = new Set(prev);
-          next.has(id) ? next.delete(id) : next.add(id);
-          return next;
-        });
-      }}
-      onNodeClick={(node) => node.href && onNavigate(node.href)}
+    <Tree
+      nodes={nodes as TreeNode[]}
+      expanded={expanded}
+      onExpandedChange={setExpanded}
+      selected={activeId}
+      onSelect={(_, node) => node.href && onNavigate(node.href)}
+      aria-label="Sidebar navigation"
     />
   );
 }
@@ -256,7 +252,7 @@ function SidebarNav({ nodes, activeId, onNavigate }) {
 | `TagPill` | — | `onClick`, `onRemove` | No | — | 3 variants, 2 sizes |
 | `Lightbox` | `open: boolean` | `onClose: () => void` | Portal | Escape | Backdrop blur |
 | `CommandPalette` | `open: boolean` | `onClose: () => void` | Portal | ↑↓ Enter Escape Home End | Filtered search, `aria-combobox` |
-| `TreeNav` | `expandedIds: Set<string>` | `onToggle(id: string)` | No | — | Controlled or uncontrolled |
+| `Tree` | `expanded: Set<string>` | `onExpandedChange(next: Set<string>)` | No | ↑↓ ←→ Home End | Link nodes use `href` |
 | `ContextMenu` | — | `onClose: () => void` | Portal | ↑↓ Enter Escape Home End | Auto-position, flip on overflow |
 
 ---

@@ -57,9 +57,6 @@ export type {
 	StatusVariant,
 } from "./components/StatusBadge";
 
-export { Result } from "./components/Result";
-export type { ResultProps, ResultStatus } from "./components/Result";
-
 export { LogView } from "./components/LogView";
 export type { LogViewProps } from "./components/LogView";
 
@@ -152,12 +149,6 @@ export type {
 	CommandPaletteItem,
 	CommandPaletteProps,
 } from "./components/CommandPalette";
-
-export { TreeNav } from "./components/TreeNav";
-export type {
-	TreeNavNode,
-	TreeNavProps,
-} from "./components/TreeNav";
 
 export { SortableList } from "./components/SortableList";
 export type { SortableListProps } from "./components/SortableList";

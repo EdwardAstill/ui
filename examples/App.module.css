@@ -11,12 +11,6 @@
 			color-mix(in srgb, var(--ps-info) 9%, transparent) 0,
 			transparent 24rem
 		),
-		radial-gradient(
-			circle at 1px 1px,
-			color-mix(in srgb, var(--ps-text) 14%, transparent) 1px,
-			transparent 1.5px
-		)
-		0 124px / 28px 28px,
 		linear-gradient(
 			180deg,
 			color-mix(in srgb, var(--ps-panel-elevated) 50%, var(--ps-surface)) 0%,
@@ -168,7 +162,6 @@
 	gap: var(--ps-space-lg);
 }
 
-.componentSource,
 .titleCode,
 .installCard,
 .metricRow code {
@@ -306,6 +299,24 @@
 	text-align: right;
 }
 
+.heroStatusRow {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto auto;
+	align-items: center;
+	gap: var(--ps-space-sm);
+	padding: var(--ps-space-sm) 0;
+	border-top: 1px solid var(--ps-border);
+	border-bottom: 1px solid var(--ps-border);
+	color: var(--ps-text-muted);
+	font-size: var(--ps-text-sm);
+}
+
+.heroStatusRow strong {
+	color: var(--ps-text);
+	font-family: var(--ps-font-mono);
+	font-size: var(--ps-text-sm);
+}
+
 .metricBarTrack {
 	height: 18px;
 	overflow: hidden;
@@ -409,21 +420,6 @@
 	color: var(--ps-text-muted);
 	font-size: var(--ps-text-xs);
 	line-height: 1.45;
-}
-
-.componentSource {
-	flex: 0 0 auto;
-	max-width: 42%;
-	overflow: hidden;
-	padding: 2px 6px;
-	border: 1px solid var(--ps-border);
-	border-radius: var(--ps-radius-xs);
-	background: color-mix(in srgb, var(--ps-surface) 28%, transparent);
-	color: var(--ps-text-subtle, var(--ps-text-muted));
-	font-size: var(--ps-text-xs);
-	line-height: 1.35;
-	text-overflow: ellipsis;
-	white-space: nowrap;
 }
 
 .componentBody {
@@ -734,8 +730,93 @@
 	gap: var(--ps-space-sm);
 }
 
-.controlStack,
-.resultStack {
+.foundationGrid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: var(--ps-space-md);
+}
+
+.foundationCard {
+	min-height: 112px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	gap: var(--ps-space-sm);
+	padding: var(--ps-space-md);
+	border: 1px solid var(--ps-border);
+	border-radius: var(--ps-radius-xs);
+	background: color-mix(in srgb, var(--ps-panel-elevated) 52%, transparent);
+}
+
+.foundationCardStrong {
+	border-color: var(--ps-border-strong);
+	background: var(--ps-panel-elevated);
+}
+
+.foundationLabel {
+	color: var(--ps-text-muted);
+	font-family: var(--ps-font-mono);
+	font-size: var(--ps-text-xs);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.foundationTextLarge {
+	color: var(--ps-text);
+	font-size: var(--ps-text-lg);
+	font-weight: 750;
+	letter-spacing: -0.035em;
+}
+
+.foundationTextBody {
+	color: var(--ps-text-muted);
+	font-size: var(--ps-text-sm);
+	line-height: 1.45;
+}
+
+.foundationSwatches {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: var(--ps-space-xs);
+}
+
+.foundationSwatch,
+.foundationSwatchSurface,
+.foundationSwatchPanel,
+.foundationSwatchElevated,
+.foundationSwatchAccent {
+	height: 28px;
+	border: 1px solid var(--ps-border);
+	border-radius: var(--ps-radius-xs);
+}
+
+.foundationSwatchSurface {
+	background: var(--ps-surface);
+}
+
+.foundationSwatchPanel {
+	background: var(--ps-panel);
+}
+
+.foundationSwatchElevated {
+	background: var(--ps-panel-elevated);
+}
+
+.foundationSwatchAccent {
+	background: var(--ps-accent);
+}
+
+.foundationFocusDemo {
+	padding: var(--ps-space-sm) var(--ps-space-md);
+	border: 1px solid var(--ps-border-strong);
+	border-radius: var(--ps-radius-xs);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--ps-accent) 28%, transparent);
+	color: var(--ps-text);
+	font-family: var(--ps-font-mono);
+	font-size: var(--ps-text-sm);
+}
+
+.controlStack {
 	display: flex;
 	flex-direction: column;
 	gap: var(--ps-space-sm);
@@ -1008,11 +1089,6 @@
 		flex-direction: column;
 	}
 
-	.componentSource {
-		max-width: 100%;
-		text-align: left;
-	}
-
 	.appShellFrame,
 	.workspaceFrame {
 		height: auto;
@@ -1092,6 +1168,39 @@
 	flex-direction: column;
 	gap: var(--ps-space-md);
 	padding: var(--ps-space-sm) 0;
+}
+
+.sliderReadout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: var(--ps-space-sm);
+	padding: var(--ps-space-sm);
+	border: 1px solid var(--ps-border);
+	border-radius: var(--ps-radius-xs);
+	background: color-mix(in srgb, var(--ps-panel-elevated) 34%, transparent);
+}
+
+.sliderReadoutTrack {
+	height: 8px;
+	overflow: hidden;
+	border-radius: 999px;
+	background: var(--ps-border);
+}
+
+.sliderReadoutFill {
+	height: 100%;
+	border-radius: inherit;
+	background: var(--ps-accent);
+}
+
+.sliderReadoutValue {
+	min-width: 4ch;
+	color: var(--ps-text);
+	font-family: var(--ps-font-mono);
+	font-size: var(--ps-text-sm);
+	font-weight: 750;
+	text-align: right;
 }
 
 .breadcrumbSpecimen {

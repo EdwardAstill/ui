@@ -458,28 +458,6 @@ Colour map (uses theme tokens):
 
 ---
 
-## `<Result>`
-
-Display block for a single result row: label, value, units, and status. Pure presentation — receives already-computed data.
-
-```tsx
-type ResultStatus = "ok" | "warn" | "err" | "info" | "none";
-
-interface ResultProps {
-  label: string;
-  value: string | number;
-  unit?: string;
-  status?: ResultStatus;     // default: "none" (no badge)
-  ratio?: string;            // e.g. "0.82 / 1.00" — optional utilisation string
-  note?: string;             // secondary line beneath value
-  style?: CSSProperties;
-}
-```
-
-**Not responsible for:** any computation, unit conversion, pass/fail logic.
-
----
-
 ## `<LogView>`
 
 Scrollable monospace area for streamed text output. Auto-scrolls to bottom when new lines arrive unless the user has scrolled up.
@@ -648,12 +626,16 @@ interface PdfViewerProps {
 ## `<Tree>`
 
 Controlled hierarchical tree view. Caller owns node shape, expanded set, and
-selected id. No internal state.
+selected id. No internal state. Nodes may optionally render as links via
+`href`, so the same component covers file/data trees and sidebar navigation.
 
 ```tsx
 interface TreeNode<T = unknown> {
   id: string;
   label: string;
+  href?: string;
+  target?: string;
+  rel?: string;
   children?: TreeNode<T>[];
   disabled?: boolean;
   icon?: ReactNode;
@@ -700,8 +682,10 @@ interface TreeProps<T = unknown> {
 ```
 
 **Interaction:** click a row to select it; click a row with children to toggle
-expansion (selection also fires). Arrow Right expands a collapsed row; Arrow
-Left collapses an expanded row. Supplying `onMove` enables drag-to-move rows.
+expansion (selection also fires). Rows with `href` render as links while still
+participating in tree selection and keyboard navigation. Arrow Right expands a
+collapsed row; Arrow Left collapses an expanded row. Supplying `onMove` enables
+drag-to-move rows.
 The tree reports `before`, `inside`, or `after` drop intent; caller updates
 `nodes` and may use `canDrop` to reject moves such as dropping into leaf nodes.
 The tree prevents dropping a node onto itself, onto a descendant, or onto a
@@ -719,7 +703,7 @@ the caller-owned node data.
 
 ## `<SortableList>`
 
-Controlled pointer-drag list. Caller owns the items and commits the reordered array returned by `onReorder`.
+Controlled pointer-drag list. Caller owns the items and commits the reordered array returned by `onReorder`. Reordering uses a lightweight FLIP-style animation: preview rows move with transforms while dragging, then the committed order animates from the previous visual positions.
 
 ```tsx
 interface SortableListProps<T = unknown> {
@@ -732,6 +716,8 @@ interface SortableListProps<T = unknown> {
   'aria-label'?: string;
 }
 ```
+
+Use `getKey` for stable item identity; index fallback is only suitable for static demos.
 
 **Not responsible for:** keyboard reordering, persistence, cross-list drag/drop, or virtualisation.
 

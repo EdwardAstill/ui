@@ -124,9 +124,8 @@ On mount, read the stored values and validate them before passing them to the pr
 | `Toggle` | Controlled boolean toggle switch |
 | `Dialog` | Overlay shell with focus trap and Escape-to-close; no built-in form wiring |
 | `StatusBadge` | Inline status badge — `ok`, `warn`, `err`, `info` |
-| `Result` | Display row for a pre-computed result: label, value, unit, status, utilisation |
 | `LogView` | Scrollable monospace area for streamed text; auto-scrolls to bottom |
-| `Tree` | Controlled hierarchical tree view with expand/collapse, selection, drag-to-move, and per-node icon/trailing slots |
+| `Tree` | Controlled hierarchical tree view with expand/collapse, selection, link nodes, drag-to-move, and per-node icon/trailing slots |
 | `SortableList` | Controlled pointer-drag list that reports reordered items |
 | `FreeformCanvas` | Absolute-positioned card canvas with drag-to-position and selection hooks |
 | `DrawingViewer` | Source-agnostic SVG/image drawing preview with pan, zoom, fit reset, metadata, and download action |
@@ -237,7 +236,7 @@ Consuming apps (`pyseas-yard-gui`, `pyseas-dock-gui`) own:
 - API calls and data fetching
 - Project and session state
 - Persistence (localStorage keys, file I/O)
-- Pass / fail logic and utilisation ratios (values are passed to `<Result>` as pre-computed strings)
+- Pass / fail logic and utilisation ratios
 
 Neither library nor app should encode the other's concerns.
 

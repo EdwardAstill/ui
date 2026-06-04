@@ -22,8 +22,6 @@ import type {
 	DialogSize,
 	StatusBadgeProps,
 	StatusVariant,
-	ResultProps,
-	ResultStatus,
 	LogViewProps,
 	TreeDisclosureArgs,
 	TreeDropPosition,
@@ -52,8 +50,6 @@ import type {
 	LightboxProps,
 	CommandPaletteItem,
 	CommandPaletteProps,
-	TreeNavNode,
-	TreeNavProps,
 } from "../src/index";
 
 // Type-level smoke: all exports resolve. Runtime check: basic instantiation.
@@ -124,10 +120,6 @@ test("all component types are importable", () => {
 	const sv: StatusVariant = "ok";
 	const sbProps: StatusBadgeProps = { variant: sv };
 	expect(sbProps.variant).toBe("ok");
-
-	const rs: ResultStatus = "warn";
-	const resultProps: ResultProps = { label: "L", value: 1, status: rs };
-	expect(resultProps.label).toBe("L");
 
 	const lvProps: LogViewProps = { lines: ["line1"] };
 	expect(lvProps.lines[0]).toBe("line1");
@@ -247,10 +239,6 @@ test("all component types are importable", () => {
 		items: [cpItem],
 	};
 	expect(cpProps.open).toBe(false);
-
-	const tnNode: TreeNavNode = { id: "root", label: "Root" };
-	const tnProps: TreeNavProps = { nodes: [tnNode] };
-	expect(tnProps.nodes[0]!.id).toBe("root");
 });
 
 test("named exports are present", async () => {
@@ -269,7 +257,6 @@ test("named exports are present", async () => {
 		"Toggle",
 		"Dialog",
 		"StatusBadge",
-		"Result",
 		"LogView",
 		"Tree",
 		"DrawingViewer",
@@ -294,7 +281,6 @@ test("named exports are present", async () => {
 		"TagPill",
 		"Lightbox",
 		"CommandPalette",
-		"TreeNav",
 	];
 	for (const name of expected) {
 		expect(typeof (mod as Record<string, unknown>)[name]).toBe("function");

@@ -2,6 +2,9 @@ import { type CSSProperties, type ReactNode } from "react";
 export interface TreeNode<T = unknown> {
     id: string;
     label: string;
+    href?: string;
+    target?: string;
+    rel?: string;
     children?: TreeNode<T>[];
     disabled?: boolean;
     icon?: ReactNode;

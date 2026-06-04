@@ -12,7 +12,7 @@ const nodes: TreeNode[] = [
 			{ id: "child-b", label: "Child B" },
 		],
 	},
-	{ id: "sibling", label: "Sibling" },
+	{ id: "sibling", label: "Sibling", href: "#sibling" },
 ];
 
 function TreeHarness() {
@@ -55,5 +55,13 @@ describe("Tree", () => {
 
 		fireEvent.keyDown(root, { key: "ArrowRight" });
 		expect(screen.getByRole("treeitem", { name: "Child A" })).toBeTruthy();
+	});
+
+	test("renders href nodes as links in the same tree", () => {
+		render(<TreeHarness />);
+
+		const sibling = screen.getByRole("treeitem", { name: "Sibling" });
+		expect(sibling.tagName).toBe("A");
+		expect(sibling.getAttribute("href")).toBe("#sibling");
 	});
 });

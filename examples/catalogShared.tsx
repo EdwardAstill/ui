@@ -19,10 +19,6 @@ function sectionIdFromTitle(title: string) {
 		.replace(/(^-|-$)/g, "");
 }
 
-function sourceLabelFromPath(source: string) {
-	return source.split("/").pop() ?? source;
-}
-
 export function DocSection({ title, children }: DocSectionProps) {
 	return (
 		<section id={sectionIdFromTitle(title)} className={styles.section}>
@@ -39,12 +35,7 @@ interface ComponentBlockProps {
 	children: ReactNode;
 }
 
-export function ComponentBlock({
-	name,
-	source,
-	meta,
-	children,
-}: ComponentBlockProps) {
+export function ComponentBlock({ name, meta, children }: ComponentBlockProps) {
 	return (
 		<article className={styles.componentBlock}>
 			<div className={styles.componentHeader}>
@@ -52,9 +43,6 @@ export function ComponentBlock({
 					<h3 className={styles.componentName}>{name}</h3>
 					<p className={styles.componentMeta}>{meta}</p>
 				</div>
-				<code className={styles.componentSource} title={source}>
-					{sourceLabelFromPath(source)}
-				</code>
 			</div>
 			<div className={styles.componentBody}>{children}</div>
 		</article>

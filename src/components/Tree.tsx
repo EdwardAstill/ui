@@ -13,6 +13,9 @@ import { cx } from "./cx";
 export interface TreeNode<T = unknown> {
 	id: string;
 	label: string;
+	href?: string;
+	target?: string;
+	rel?: string;
 	children?: TreeNode<T>[];
 	disabled?: boolean;
 	icon?: ReactNode;
@@ -121,7 +124,7 @@ export function Tree<T = unknown>({
 	}
 
 	function handleRowDragOver(
-		event: DragEvent<HTMLButtonElement>,
+		event: DragEvent<HTMLElement>,
 		targetId: string,
 	): boolean {
 		const position = getDropPosition(event);
@@ -137,10 +140,7 @@ export function Tree<T = unknown>({
 		return true;
 	}
 
-	function handleRowDrop(
-		event: DragEvent<HTMLButtonElement>,
-		targetId: string,
-	) {
+	function handleRowDrop(event: DragEvent<HTMLElement>, targetId: string) {
 		const position =
 			dropTarget?.id === targetId
 				? dropTarget.position
@@ -171,10 +171,8 @@ export function Tree<T = unknown>({
 			return;
 
 		const items = Array.from(
-			event.currentTarget.querySelectorAll<HTMLButtonElement>(
-				'[role="treeitem"]:not(:disabled)',
-			),
-		);
+			event.currentTarget.querySelectorAll<HTMLElement>('[role="treeitem"]'),
+		).filter((item) => item.getAttribute("aria-disabled") !== "true");
 		if (items.length === 0) return;
 
 		const currentIndex = Math.max(
@@ -257,11 +255,8 @@ interface TreeRowProps<T> {
 	draggingId: string | null;
 	dropTarget: TreeDropTarget | null;
 	onDragStart: (id: string) => void;
-	onDragOver: (
-		event: DragEvent<HTMLButtonElement>,
-		targetId: string,
-	) => boolean;
-	onDrop: (event: DragEvent<HTMLButtonElement>, targetId: string) => void;
+	onDragOver: (event: DragEvent<HTMLElement>, targetId: string) => boolean;
+	onDrop: (event: DragEvent<HTMLElement>, targetId: string) => void;
 	onDragEnd: () => void;
 }
 
@@ -292,13 +287,16 @@ function TreeRow<T>({
 	const isDraggable = moveEnabled && !isDisabled;
 	const dropPosition = dropTarget?.id === node.id ? dropTarget.position : null;
 
-	function handleClick() {
-		if (isDisabled) return;
+	function handleClick(event: React.MouseEvent<HTMLElement>) {
+		if (isDisabled) {
+			event.preventDefault();
+			return;
+		}
 		if (hasChildren) toggle(node.id);
 		if (onSelect !== undefined) onSelect(node.id, node);
 	}
 
-	function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+	function handleKeyDown(event: React.KeyboardEvent<HTMLElement>) {
 		if (isDisabled) return;
 		if (event.key === "ArrowRight" && hasChildren && !isExpanded) {
 			event.preventDefault();
@@ -309,7 +307,7 @@ function TreeRow<T>({
 		}
 	}
 
-	function handleDragStart(event: DragEvent<HTMLButtonElement>) {
+	function handleDragStart(event: DragEvent<HTMLElement>) {
 		if (!isDraggable) return;
 
 		event.dataTransfer.effectAllowed = "move";
@@ -317,13 +315,13 @@ function TreeRow<T>({
 		onDragStart(node.id);
 	}
 
-	function handleDragOver(event: DragEvent<HTMLButtonElement>) {
+	function handleDragOver(event: DragEvent<HTMLElement>) {
 		if (!moveEnabled) return;
 		const accepted = onDragOver(event, node.id);
 		if (!accepted) event.dataTransfer.dropEffect = "none";
 	}
 
-	function handleDrop(event: DragEvent<HTMLButtonElement>) {
+	function handleDrop(event: DragEvent<HTMLElement>) {
 		onDrop(event, node.id);
 	}
 
@@ -366,50 +364,83 @@ function TreeRow<T>({
 			</svg>
 		);
 
+	const rowClassName = cx(
+		styles.row,
+		isSelected && styles.rowSelected,
+		isDisabled && styles.rowDisabled,
+		isDraggable && styles.rowDraggable,
+		isDragging && styles.rowDragging,
+		dropPosition === "before" && styles.rowDropBefore,
+		dropPosition === "inside" && styles.rowDropInside,
+		dropPosition === "after" && styles.rowDropAfter,
+	);
+	const rowStyle = {
+		paddingLeft: `calc(var(--ps-space-sm) + ${depth * indent}px)`,
+	};
+	const rowChildren = (
+		<>
+			{hasChildren ? (
+				disclosureContent
+			) : (
+				<span className={styles.caretSpacer} aria-hidden="true" />
+			)}
+			{node.icon !== undefined && (
+				<span className={styles.icon} aria-hidden="true">
+					{node.icon}
+				</span>
+			)}
+			{rowContent}
+		</>
+	);
+
 	return (
 		<>
-			<button
-				type="button"
-				role="treeitem"
-				aria-expanded={hasChildren ? isExpanded : undefined}
-				aria-selected={isSelected}
-				aria-disabled={isDisabled}
-				disabled={isDisabled}
-				className={cx(
-					styles.row,
-					isSelected && styles.rowSelected,
-					isDisabled && styles.rowDisabled,
-					isDraggable && styles.rowDraggable,
-					isDragging && styles.rowDragging,
-					dropPosition === "before" && styles.rowDropBefore,
-					dropPosition === "inside" && styles.rowDropInside,
-					dropPosition === "after" && styles.rowDropAfter,
-				)}
-				style={{
-					paddingLeft: `calc(var(--ps-space-sm) + ${depth * indent}px)`,
-				}}
-				data-tree-id={node.id}
-				draggable={isDraggable}
-				tabIndex={focusId === node.id ? 0 : -1}
-				onClick={handleClick}
-				onKeyDown={handleKeyDown}
-				onDragStart={handleDragStart}
-				onDragOver={handleDragOver}
-				onDrop={handleDrop}
-				onDragEnd={onDragEnd}
-			>
-				{hasChildren ? (
-					disclosureContent
-				) : (
-					<span className={styles.caretSpacer} aria-hidden="true" />
-				)}
-				{node.icon !== undefined && (
-					<span className={styles.icon} aria-hidden="true">
-						{node.icon}
-					</span>
-				)}
-				{rowContent}
-			</button>
+			{node.href !== undefined ? (
+				<a
+					href={isDisabled ? undefined : node.href}
+					target={node.target}
+					rel={node.rel}
+					role="treeitem"
+					aria-expanded={hasChildren ? isExpanded : undefined}
+					aria-selected={isSelected}
+					aria-disabled={isDisabled}
+					className={rowClassName}
+					style={rowStyle}
+					data-tree-id={node.id}
+					draggable={isDraggable}
+					tabIndex={focusId === node.id ? 0 : -1}
+					onClick={handleClick}
+					onKeyDown={handleKeyDown}
+					onDragStart={handleDragStart}
+					onDragOver={handleDragOver}
+					onDrop={handleDrop}
+					onDragEnd={onDragEnd}
+				>
+					{rowChildren}
+				</a>
+			) : (
+				<button
+					type="button"
+					role="treeitem"
+					aria-expanded={hasChildren ? isExpanded : undefined}
+					aria-selected={isSelected}
+					aria-disabled={isDisabled}
+					disabled={isDisabled}
+					className={rowClassName}
+					style={rowStyle}
+					data-tree-id={node.id}
+					draggable={isDraggable}
+					tabIndex={focusId === node.id ? 0 : -1}
+					onClick={handleClick}
+					onKeyDown={handleKeyDown}
+					onDragStart={handleDragStart}
+					onDragOver={handleDragOver}
+					onDrop={handleDrop}
+					onDragEnd={onDragEnd}
+				>
+					{rowChildren}
+				</button>
+			)}
 			{hasChildren && isExpanded && (
 				<div role="group">
 					{node.children!.map((child) => (
