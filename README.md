@@ -57,15 +57,57 @@ Then run `bun install` (or the workspace manager's equivalent) in the consuming 
 
 ---
 
-## CSS import
+## Package imports
 
-The package ships a single CSS file containing all design tokens and component styles. Import it once, near the root of the consuming app (e.g. in `main.tsx` or the top-level entry module):
+The root entry and stylesheet remain available for backwards compatibility:
 
 ```ts
-import 'ui/dist/ui.css'
+import 'ui/styles.css' // equivalent to the legacy `ui/dist/ui.css`
+import { Button, DrawingViewer, MarkdownViewer } from 'ui'
 ```
 
-This must load before any `ui` component renders. Without it the theme tokens are absent and components will be unstyled.
+That aggregate stylesheet includes every component layer, the optional UI
+fonts, and KaTeX. New consumers should use granular entries so ordinary controls
+do not load Markdown, KaTeX, DXF, or Three.js.
+
+For a core-only application:
+
+```ts
+import 'ui/styles/tokens.css'
+import 'ui/styles/base.css'
+import 'ui/styles/core.css'
+import { Button, ThemeProvider, Workspace } from 'ui/core'
+```
+
+`tokens.css` and the relevant component stylesheet are required. `base.css` is
+the package reset and element baseline; it is recommended but may be omitted if
+the application owns those rules. Packaged UI fonts are also optional:
+
+```ts
+import 'ui/styles/fonts.css'
+```
+
+Without that import, the tokens use their documented system and monospace
+fallback stacks. The font stylesheet references six external WOFF2 assets; it
+does not embed fonts in CSS.
+
+Add optional capabilities independently:
+
+```ts
+import 'ui/styles/viewers.css'
+import { DrawingViewer, CsvViewer, PdfViewer } from 'ui/viewers'
+
+import 'ui/styles/markdown.css'
+import 'ui/styles/katex.css'
+import { MarkdownViewer } from 'ui/markdown'
+
+import 'ui/styles/cad.css'
+import { CadDxfViewer, CadStepViewer } from 'ui/cad'
+```
+
+`katex.css` references only external WOFF2 assets and is required when rendered
+math should use KaTeX's supplied fonts. JavaScript entries never inject CSS, so
+load each selected stylesheet before its components render.
 
 ---
 
@@ -266,8 +308,11 @@ global package store, use `bun install -g --backend=symlink .` so the command
 serves this checkout's `examples/` and local dev dependencies.
 
 Build output goes to `dist/`:
-- `dist/ui.es.js` — ES module bundle
-- `dist/ui.css` — all tokens and styles
+- `dist/ui.es.js` — backwards-compatible aggregate ES module entry
+- `dist/{core,viewers,markdown,cad}.es.js` — granular ES module entries
+- `dist/ui.css` — backwards-compatible aggregate stylesheet
+- `dist/styles/` — tokens, base, fonts, and component-layer stylesheets
+- `dist/fonts/` — external WOFF2 assets for optional UI and KaTeX fonts
 - `dist/types/` — TypeScript declarations
 
 ---

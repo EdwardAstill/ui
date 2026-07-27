@@ -20,18 +20,72 @@
       "types": "./dist/types/index.d.ts",
       "import": "./dist/ui.es.js"
     },
+    "./core": {
+      "types": "./dist/types/core.d.ts",
+      "import": "./dist/core.es.js"
+    },
+    "./viewers": {
+      "types": "./dist/types/viewers.d.ts",
+      "import": "./dist/viewers.es.js"
+    },
+    "./markdown": {
+      "types": "./dist/types/markdown.d.ts",
+      "import": "./dist/markdown.es.js"
+    },
+    "./cad": {
+      "types": "./dist/types/cad.d.ts",
+      "import": "./dist/cad.es.js"
+    },
+    "./styles.css": {
+      "types": "./dist/ui.d.css.ts",
+      "default": "./dist/ui.css"
+    },
     "./dist/ui.css": {
       "types": "./dist/ui.d.css.ts",
       "default": "./dist/ui.css"
+    },
+    "./styles/tokens.css": {
+      "types": "./dist/styles/tokens.d.css.ts",
+      "default": "./dist/styles/tokens.css"
+    },
+    "./styles/base.css": {
+      "types": "./dist/styles/base.d.css.ts",
+      "default": "./dist/styles/base.css"
+    },
+    "./styles/fonts.css": {
+      "types": "./dist/styles/fonts.d.css.ts",
+      "default": "./dist/styles/fonts.css"
+    },
+    "./styles/core.css": {
+      "types": "./dist/styles/core.d.css.ts",
+      "default": "./dist/styles/core.css"
+    },
+    "./styles/viewers.css": {
+      "types": "./dist/styles/viewers.d.css.ts",
+      "default": "./dist/styles/viewers.css"
+    },
+    "./styles/markdown.css": {
+      "types": "./dist/styles/markdown.d.css.ts",
+      "default": "./dist/styles/markdown.css"
+    },
+    "./styles/cad.css": {
+      "types": "./dist/styles/cad.d.css.ts",
+      "default": "./dist/styles/cad.css"
+    },
+    "./styles/katex.css": {
+      "types": "./dist/styles/katex.d.css.ts",
+      "default": "./dist/styles/katex.css"
     }
   },
   "scripts": {
     "dev": "vite",
     "demo": "bun ./bin/ui.mjs demo",
-    "build": "vite build && tsc -p tsconfig.build.json && node scripts/write-css-dts.mjs",
+    "build": "vite build && tsc -p tsconfig.build.json && node scripts/write-package-assets.mjs",
     "typecheck": "tsc -b --noEmit",
+    "typecheck:package": "tsc -p tsconfig.build.json --noEmit --emitDeclarationOnly false",
     "test": "bun test",
-    "lint": "eslint src examples design-lab tests"
+    "lint": "eslint src examples design-lab tests",
+    "lint:package": "eslint src/components src/index.ts src/core.ts src/viewers.ts src/markdown.ts src/cad.ts vite.config.ts scripts/write-package-assets.mjs tests/packageExports.test.ts"
   },
   "peerDependencies": {
     "react": "^19.0.0",

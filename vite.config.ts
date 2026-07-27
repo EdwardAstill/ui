@@ -24,14 +24,21 @@ export default defineConfig(({ command }) => {
       ? {}
       : {
           lib: {
-            entry: resolve(__dirname, 'src/index.ts'),
+            entry: {
+              core: resolve(__dirname, 'src/core.ts'),
+              viewers: resolve(__dirname, 'src/viewers.ts'),
+              markdown: resolve(__dirname, 'src/markdown.ts'),
+              cad: resolve(__dirname, 'src/cad.ts'),
+            },
             name: 'Ui',
-            fileName: (format) => `ui.${format}.js`,
+            fileName: (format, entryName) => `${entryName}.${format}.js`,
             formats: ['es'],
           },
+          cssCodeSplit: true,
           rollupOptions: {
             external: ['react', 'react-dom', 'react/jsx-runtime'],
             output: {
+              assetFileNames: '_styles/[name][extname]',
               globals: {
                 react: 'React',
                 'react-dom': 'ReactDOM',

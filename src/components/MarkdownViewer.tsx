@@ -3,8 +3,7 @@ import type { CSSProperties } from "react";
 import MarkdownIt from "markdown-it";
 import texmath from "markdown-it-texmath";
 import katex from "katex";
-import "katex/dist/katex.min.css";
-import styles from "./Viewers.module.css";
+import styles from "./MarkdownViewer.module.css";
 
 export interface MarkdownViewerProps {
 	/** Raw markdown content. Supports $$/display/$$ and $inline$ LaTeX via KaTeX. */
